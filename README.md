@@ -1,4 +1,4 @@
-# Chicken Farm
+# Chicken Farm ([play here](https://abdullahamdi.com/chicken/))
 
 Welcome to **Chicken Farm**, an exciting and interactive browser-based game where your quick reflexes and timing are put to the test! Use your hammer to whack as many chickens as possible before they overrun the farm.
 
