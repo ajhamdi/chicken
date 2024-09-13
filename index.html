@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hammer the Chickens Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            cursor: none; /* Hide default cursor */
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background: url('farm-background.jpg') no-repeat center center;
+            background-size: cover;
+        }
+        #score, #maxChickensDisplay {
+            position: absolute;
+            top: 10px;
+            color: #FFFFFF;
+            font-size: 24px;
+            font-family: Arial, sans-serif;
+            z-index: 1;
+            text-shadow: 2px 2px #000000;
+        }
+        #score {
+            left: 10px;
+        }
+        #maxChickensDisplay {
+            right: 10px;
+        }
+        #gameOver {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FFFFFF;
+            font-size: 48px;
+            font-family: Arial, sans-serif;
+            z-index: 2;
+            text-shadow: 3px 3px #000000;
+            display: none;
+            text-align: center;
+        }
+        #finalScore {
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FFFFFF;
+            font-size: 32px;
+            font-family: Arial, sans-serif;
+            z-index: 2;
+            text-shadow: 2px 2px #000000;
+            display: none;
+            text-align: center;
+        }
+        #restartButton {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            padding: 10px 20px;
+            z-index: 2;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="score">Score: 0</div>
+    <div id="maxChickensDisplay"></div>
+    <div id="gameOver">Game Over</div>
+    <div id="finalScore"></div>
+    <button id="restartButton">Restart Game</button>
+
+    <script>
+        // Get the canvas and context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game variables
+        let score = 0;
+        let multiplier = 1;
+        let lastHitTime = 0;
+        let comboTimeLimit = 2000; // Time in milliseconds to continue combo
+        let chickens = [];
+        const maxChickens = 20; // Game over condition
+        const chickenImage = new Image();
+        chickenImage.src = 'chicken.png';
+        const chickenDeadImage = new Image();
+        chickenDeadImage.src = 'chicken-dead.png';
+        const chickenWidth = 60;
+        const chickenHeight = 60;
+        let spawnInterval = 1000; // Time in milliseconds
+        let chickenSpeed = 2;
+        const minSpawnInterval = 300; // Minimum spawn interval
+        const maxChickenSpeed = 6; // Maximum chicken speed
+        let gameTime = 0; // Time since game started in milliseconds
+
+        // Hammer variables
+        const hammerOffImage = new Image();
+        hammerOffImage.src = 'hammer-off.png';
+        const hammerOnImage = new Image();
+        hammerOnImage.src = 'hammer-on.png';
+        let hammerImage = hammerOffImage;
+        const hammerWidth = 50;
+        const hammerHeight = 50;
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+        let isMouseDown = false;
+
+        // Sound
+        const hitSound = new Audio('hit-sound.mp3');
+        const missSound = new Audio('miss-sound.mp3');
+
+        // Game state
+        let isGameOver = false;
+        let startTime;
+
+        // Initialize game
+        function init() {
+            // Wait for images to load
+            let imagesLoaded = 0;
+            const totalImages = 4; // Updated to include chickenDeadImage
+            function imageLoaded() {
+                imagesLoaded++;
+                if (imagesLoaded === totalImages) {
+                    // All images loaded, start game
+                    startTime = Date.now();
+                    document.getElementById('maxChickensDisplay').innerText = 'Maximum allowed chickens: ' + maxChickens;
+                    spawnChicken();
+                    update();
+                    canvas.addEventListener('mousedown', hammerDown);
+                    canvas.addEventListener('mouseup', hammerUp);
+                    canvas.addEventListener('mousemove', updateMousePosition);
+                    // For touch devices
+                    canvas.addEventListener('touchstart', hammerDown);
+                    canvas.addEventListener('touchend', hammerUp);
+                    canvas.addEventListener('touchmove', updateTouchPosition);
+                }
+            }
+            chickenImage.onload = imageLoaded;
+            chickenDeadImage.onload = imageLoaded;
+            hammerOffImage.onload = imageLoaded;
+            hammerOnImage.onload = imageLoaded;
+
+            // Event listener for restart button
+            document.getElementById('restartButton').addEventListener('click', restartGame);
+        }
+
+        // Spawn chickens at random positions
+        function spawnChicken() {
+            if (isGameOver) return;
+            if (chickens.length < maxChickens) {
+                const x = Math.random() * (canvas.width - chickenWidth);
+                // Place chicken in lower 50% of canvas
+                const y = Math.random() * ((canvas.height - chickenHeight) / 2) + (canvas.height / 2);
+                const directionX = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * chickenSpeed + 1);
+                const directionY = -((Math.random() * chickenSpeed) + 1); // Move upwards
+
+                chickens.push({
+                    x: x,
+                    y: y,
+                    dx: directionX,
+                    dy: directionY,
+                    isDead: false,
+                    deathTime: 0,
+                    image: chickenImage,
+                    opacity: 1.0
+                });
+            } else {
+                // Game over condition
+                endGame();
+                return;
+            }
+            // Schedule next spawn
+            setTimeout(spawnChicken, spawnInterval);
+        }
+
+        // Update game state
+        function update() {
+            if (isGameOver) return;
+            clearCanvas();
+            updateGameDifficulty();
+            moveChickens();
+            drawChickens();
+            drawHammer();
+            requestAnimationFrame(update);
+        }
+
+        // Update game difficulty over time
+        function updateGameDifficulty() {
+            gameTime = Date.now() - startTime;
+            // Increase difficulty every 10 seconds
+            const difficultyFactor = Math.floor(gameTime / 10000);
+
+            // Decrease spawnInterval but not below minSpawnInterval
+            spawnInterval = Math.max(1000 - difficultyFactor * 100, minSpawnInterval);
+
+            // Increase chickenSpeed but not above maxChickenSpeed
+            chickenSpeed = Math.min(2 + difficultyFactor * 0.5, maxChickenSpeed);
+        }
+
+        // Clear the canvas
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Move chickens
+        function moveChickens() {
+            const currentTime = Date.now();
+            for (let i = chickens.length - 1; i >= 0; i--) {
+                const chicken = chickens[i];
+
+                if (chicken.isDead) {
+                    // Fade out effect
+                    const elapsed = currentTime - chicken.deathTime;
+                    chicken.opacity = 1 - (elapsed / 1000);
+                    if (chicken.opacity <= 0) {
+                        chickens.splice(i, 1);
+                    }
+                    continue;
+                }
+
+                chicken.x += chicken.dx;
+                chicken.y += chicken.dy;
+
+                // Bounce off left and right walls
+                if (chicken.x <= 0) {
+                    chicken.x = 0;
+                    chicken.dx *= -1;
+                } else if (chicken.x + chickenWidth >= canvas.width) {
+                    chicken.x = canvas.width - chickenWidth;
+                    chicken.dx *= -1;
+                }
+
+                // Bounce off floor
+                if (chicken.y + chickenHeight >= canvas.height) {
+                    chicken.y = canvas.height - chickenHeight;
+                    chicken.dy *= -1;
+                }
+
+                // Bounce off ceiling (middle of the canvas)
+                if (chicken.y <= canvas.height / 2) {
+                    chicken.y = canvas.height / 2;
+                    chicken.dy *= -1;
+                }
+            }
+
+            // Check for game over condition
+            if (chickens.length >= maxChickens) {
+                endGame();
+            }
+        }
+
+        // Draw chickens
+        function drawChickens() {
+            chickens.forEach(chicken => {
+                ctx.save();
+                ctx.globalAlpha = chicken.opacity;
+                ctx.drawImage(chicken.image, chicken.x, chicken.y, chickenWidth, chickenHeight);
+                ctx.restore();
+            });
+        }
+
+        // Draw hammer
+        function drawHammer() {
+            const hammerX = mouseX - hammerWidth / 2;
+            const hammerY = mouseY - hammerHeight / 2;
+            ctx.drawImage(hammerImage, hammerX, hammerY, hammerWidth, hammerHeight);
+        }
+
+        // Handle hammering
+        function hammerDown(event) {
+            if (isGameOver) return;
+            isMouseDown = true;
+            hammerImage = hammerOnImage;
+            const hit = checkHit();
+            if (!hit) {
+                // Play miss sound
+                missSound.currentTime = 0;
+                missSound.play();
+                // Reset multiplier
+                multiplier = 1;
+            }
+            event.preventDefault();
+        }
+
+        function hammerUp(event) {
+            isMouseDown = false;
+            hammerImage = hammerOffImage;
+            event.preventDefault();
+        }
+
+        function updateMousePosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = event.clientX - rect.left;
+            mouseY = event.clientY - rect.top;
+        }
+
+        // For touch devices
+        function updateTouchPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = event.touches[0].clientX - rect.left;
+            mouseY = event.touches[0].clientY - rect.top;
+            event.preventDefault();
+        }
+
+        // Check for hitting chickens
+        function checkHit() {
+            const currentTime = Date.now();
+            for (let i = 0; i < chickens.length; i++) {
+                const chicken = chickens[i];
+                if (!chicken.isDead &&
+                    mouseX >= chicken.x &&
+                    mouseX <= chicken.x + chickenWidth &&
+                    mouseY >= chicken.y &&
+                    mouseY <= chicken.y + chickenHeight
+                ) {
+                    // Play hit sound
+                    hitSound.currentTime = 0; // Reset sound to start
+                    hitSound.play();
+
+                    // Change chicken to dead state
+                    chicken.isDead = true;
+                    chicken.deathTime = currentTime;
+                    chicken.image = chickenDeadImage;
+
+                    // Update combo multiplier
+                    if (currentTime - lastHitTime <= comboTimeLimit) {
+                        multiplier++;
+                    } else {
+                        multiplier = 1;
+                    }
+                    lastHitTime = currentTime;
+
+                    // Increment score with multiplier
+                    score += multiplier;
+                    updateScore();
+                    return true; // Hit happened
+                }
+            }
+            return false; // No hit
+        }
+
+        // Update the score display
+        function updateScore() {
+            document.getElementById('score').innerText = 'Score: ' + score + ' (x' + multiplier + ')';
+        }
+
+        // End the game
+        function endGame() {
+            isGameOver = true;
+            document.getElementById('gameOver').style.display = 'block';
+            // Display the final score
+            document.getElementById('finalScore').innerText = 'Your final score: ' + score;
+            document.getElementById('finalScore').style.display = 'block';
+            document.getElementById('restartButton').style.display = 'block';
+            // Remove event listeners
+            canvas.removeEventListener('mousedown', hammerDown);
+            canvas.removeEventListener('mouseup', hammerUp);
+            canvas.removeEventListener('mousemove', updateMousePosition);
+            canvas.removeEventListener('touchstart', hammerDown);
+            canvas.removeEventListener('touchend', hammerUp);
+            canvas.removeEventListener('touchmove', updateTouchPosition);
+        }
+
+        // Restart the game
+        function restartGame() {
+            // Reset game variables
+            score = 0;
+            multiplier = 1;
+            lastHitTime = 0;
+            chickens = [];
+            spawnInterval = 1000;
+            chickenSpeed = 2;
+            gameTime = 0;
+            isGameOver = false;
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('finalScore').style.display = 'none';
+            document.getElementById('restartButton').style.display = 'none';
+            updateScore();
+            startTime = Date.now();
+            // Re-add event listeners
+            canvas.addEventListener('mousedown', hammerDown);
+            canvas.addEventListener('mouseup', hammerUp);
+            canvas.addEventListener('mousemove', updateMousePosition);
+            canvas.addEventListener('touchstart', hammerDown);
+            canvas.addEventListener('touchend', hammerUp);
+            canvas.addEventListener('touchmove', updateTouchPosition);
+            // Restart spawning and updating
+            spawnChicken();
+            update();
+        }
+
+        // Start the game
+        init();
+    </script>
+</body>
+</html>
