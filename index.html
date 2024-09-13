@@ -7,35 +7,35 @@
         body {
             margin: 0;
             overflow: hidden;
-            cursor: none; /* Hide default cursor */
         }
         #gameCanvas {
             display: block;
             margin: 0 auto;
             background: url('farm-background.jpg') no-repeat center center;
             background-size: cover;
+            cursor: none; /* Hide cursor over the canvas */
         }
-        #score, #maxChickensDisplay {
+        #topBar {
             position: absolute;
             top: 10px;
-            color: #FFFFFF;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+        }
+        #score, #maxChickensDisplay {
+            display: inline-block;
+            margin: 0 20px;
+            color: blue;
             font-size: 24px;
             font-family: Arial, sans-serif;
-            z-index: 1;
             text-shadow: 2px 2px #000000;
-        }
-        #score {
-            left: 10px;
-        }
-        #maxChickensDisplay {
-            right: 10px;
         }
         #gameOver {
             position: absolute;
             top: 35%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #FFFFFF;
+            color: blue; /* Changed to blue */
             font-size: 48px;
             font-family: Arial, sans-serif;
             z-index: 2;
@@ -48,7 +48,7 @@
             top: 45%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #FFFFFF;
+            color: blue; /* Changed to blue */
             font-size: 32px;
             font-family: Arial, sans-serif;
             z-index: 2;
@@ -70,8 +70,10 @@
 </head>
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="score">Score: 0</div>
-    <div id="maxChickensDisplay"></div>
+    <div id="topBar">
+        <div id="score">Score: 0</div>
+        <div id="maxChickensDisplay"></div>
+    </div>
     <div id="gameOver">Game Over</div>
     <div id="finalScore"></div>
     <button id="restartButton">Restart Game</button>
@@ -115,6 +117,12 @@
         // Sound
         const hitSound = new Audio('hit-sound.mp3');
         const missSound = new Audio('miss-sound.mp3');
+
+        // Background music
+        const backgroundMusic = new Audio('background.mp3');
+        backgroundMusic.loop = true;
+        backgroundMusic.volume = 0.2;
+        let backgroundMusicStarted = false;
 
         // Game state
         let isGameOver = false;
@@ -169,7 +177,9 @@
                     isDead: false,
                     deathTime: 0,
                     image: chickenImage,
-                    opacity: 1.0
+                    opacity: 1.0,
+                    multiplierText: null, // For displaying multiplier
+                    textOpacity: 1.0 // Opacity for the text
                 });
             } else {
                 // Game over condition
@@ -219,6 +229,7 @@
                     // Fade out effect
                     const elapsed = currentTime - chicken.deathTime;
                     chicken.opacity = 1 - (elapsed / 1000);
+                    chicken.textOpacity = chicken.opacity; // Sync text opacity with chicken opacity
                     if (chicken.opacity <= 0) {
                         chickens.splice(i, 1);
                     }
@@ -261,8 +272,32 @@
             chickens.forEach(chicken => {
                 ctx.save();
                 ctx.globalAlpha = chicken.opacity;
-                ctx.drawImage(chicken.image, chicken.x, chicken.y, chickenWidth, chickenHeight);
+
+                if (chicken.dx > 0) {
+                    // Moving right, flip the image
+                    ctx.translate(chicken.x + chickenWidth / 2, chicken.y);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(chicken.image, -chickenWidth / 2, 0, chickenWidth, chickenHeight);
+                } else {
+                    // Moving left or not moving horizontally, draw normally
+                    ctx.translate(chicken.x, chicken.y);
+                    ctx.drawImage(chicken.image, 0, 0, chickenWidth, chickenHeight);
+                }
+
                 ctx.restore();
+
+                // Draw multiplier text over dead chickens
+                if (chicken.isDead && chicken.multiplierText && chicken.textOpacity > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = chicken.textOpacity;
+                    ctx.fillStyle = 'blue';
+                    ctx.font = `${chickenHeight * 0.4}px Arial`;
+                    ctx.textAlign = 'center';
+                    const textX = chicken.x + chickenWidth / 2;
+                    const textY = chicken.y + chickenHeight / 2 - chickenHeight * 0.5;
+                    ctx.fillText(chicken.multiplierText, textX, textY);
+                    ctx.restore();
+                }
             });
         }
 
@@ -275,6 +310,10 @@
 
         // Handle hammering
         function hammerDown(event) {
+            if (!backgroundMusicStarted) {
+                backgroundMusic.play();
+                backgroundMusicStarted = true;
+            }
             if (isGameOver) return;
             isMouseDown = true;
             hammerImage = hammerOnImage;
@@ -340,6 +379,12 @@
                     // Increment score with multiplier
                     score += multiplier;
                     updateScore();
+
+                    // If multiplier is 2x or more, set multiplierText
+                    if (multiplier >= 2) {
+                        chicken.multiplierText = 'x' + multiplier;
+                    }
+
                     return true; // Hit happened
                 }
             }
@@ -366,6 +411,10 @@
             canvas.removeEventListener('touchstart', hammerDown);
             canvas.removeEventListener('touchend', hammerUp);
             canvas.removeEventListener('touchmove', updateTouchPosition);
+            // Pause background music
+            backgroundMusic.pause();
+            // Show cursor over the canvas
+            canvas.style.cursor = 'default';
         }
 
         // Restart the game
@@ -384,6 +433,9 @@
             document.getElementById('restartButton').style.display = 'none';
             updateScore();
             startTime = Date.now();
+            // Reset background music
+            backgroundMusic.currentTime = 0;
+            backgroundMusicStarted = false;
             // Re-add event listeners
             canvas.addEventListener('mousedown', hammerDown);
             canvas.addEventListener('mouseup', hammerUp);
@@ -394,6 +446,8 @@
             // Restart spawning and updating
             spawnChicken();
             update();
+            // Hide cursor over the canvas
+            canvas.style.cursor = 'none';
         }
 
         // Start the game
