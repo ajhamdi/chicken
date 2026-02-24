@@ -1,176 +1,1045 @@
-<!-- made by Abdullah Hamdi , Septmber 14 , 2024 // with the help of open AI o1-preview model -->
+<!-- made by Abdullah Hamdi , September 14 , 2024 // with the help of open AI o1-preview model -->
+<!-- Enhanced with exciting features: Feb 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Hammer the Chickens Game</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             margin: 0;
             overflow: hidden;
+            background: #000;
         }
         #gameCanvas {
             display: block;
             margin: 0 auto;
             background: url('farm-background.jpg') no-repeat center center;
             background-size: cover;
-            cursor: none; /* Hide cursor over the canvas */
+            cursor: none;
         }
         #topBar {
             position: absolute;
             top: 10px;
             width: 100%;
-            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 1;
+            pointer-events: none;
+        }
+        #score, #waveDisplay, #highScoreDisplay {
+            display: inline-block;
+            color: #FFD700;
+            font-size: 22px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000, 0 0 10px rgba(255,215,0,0.5);
+            letter-spacing: 1px;
+        }
+        #waveDisplay {
+            color: #FF6347;
+        }
+        #highScoreDisplay {
+            color: #00FFAA;
+            font-size: 18px;
+        }
+        /* Danger bar container */
+        #dangerBarContainer {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 20px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
             z-index: 1;
         }
-        #score, #maxChickensDisplay {
+        #dangerBar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+            border-radius: 8px;
+            transition: width 0.3s ease;
+        }
+        #dangerLabel {
+            position: absolute;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            text-shadow: 1px 1px 2px #000;
+            z-index: 1;
+        }
+        /* Power-up status indicators */
+        #powerUpStatus {
+            position: absolute;
+            top: 45px;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .powerup-active {
             display: inline-block;
-            margin: 0 20px;
-            color: blue;
+            margin: 0 8px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            animation: powerupPulse 0.8s ease-in-out infinite alternate;
+        }
+        @keyframes powerupPulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+        /* Game Over overlay */
+        #gameOverOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            z-index: 10;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #gameOverOverlay.show {
+            display: flex;
+        }
+        #gameOverText {
+            color: #FF4444;
+            font-size: 64px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 3px 3px 6px #000, 0 0 30px rgba(255,68,68,0.8);
+            margin-bottom: 10px;
+            animation: gameOverShake 0.5s ease-in-out;
+        }
+        @keyframes gameOverShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-20px) rotate(-2deg); }
+            40% { transform: translateX(20px) rotate(2deg); }
+            60% { transform: translateX(-10px) rotate(-1deg); }
+            80% { transform: translateX(10px) rotate(1deg); }
+        }
+        #finalScoreText {
+            color: #FFD700;
+            font-size: 36px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 5px;
+        }
+        #finalWaveText {
+            color: #FF6347;
             font-size: 24px;
             font-family: Arial, sans-serif;
-            text-shadow: 2px 2px #000000;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 5px;
         }
-        #gameOver {
-            position: absolute;
-            top: 35%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: blue; /* Changed to blue */
-            font-size: 48px;
-            font-family: Arial, sans-serif;
-            z-index: 2;
-            text-shadow: 3px 3px #000000;
+        #newHighScore {
+            color: #00FF88;
+            font-size: 28px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 0 0 20px rgba(0,255,136,0.8);
+            margin-bottom: 15px;
             display: none;
-            text-align: center;
+            animation: highScorePulse 0.6s ease-in-out infinite alternate;
         }
-        #finalScore {
-            position: absolute;
-            top: 45%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: blue; /* Changed to blue */
-            font-size: 32px;
-            font-family: Arial, sans-serif;
-            z-index: 2;
-            text-shadow: 2px 2px #000000;
-            display: none;
-            text-align: center;
+        @keyframes highScorePulse {
+            from { transform: scale(1); opacity: 0.8; }
+            to { transform: scale(1.15); opacity: 1; }
         }
         #restartButton {
+            font-size: 24px;
+            padding: 12px 40px;
+            background: linear-gradient(180deg, #FF6347, #CC3322);
+            color: #fff;
+            border: 3px solid #FFD700;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 1px 1px 2px #000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+        }
+        #restartButton:hover {
+            transform: scale(1.05);
+        }
+        #restartButton:active {
+            transform: scale(0.95);
+        }
+        /* Start screen */
+        #startScreen {
             position: absolute;
-            top: 55%;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, #87CEEB 0%, #228B22 60%, #1a6b1a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+        #gameTitle {
+            font-size: 56px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px #000, 0 0 30px rgba(255,215,0,0.6);
+            margin-bottom: 10px;
+            animation: titleBounce 1.5s ease-in-out infinite;
+        }
+        @keyframes titleBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        #gameSubtitle {
+            font-size: 22px;
+            font-family: Arial, sans-serif;
+            color: #fff;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 30px;
+        }
+        #startButton {
+            font-size: 32px;
+            padding: 15px 60px;
+            background: linear-gradient(180deg, #FF6347, #CC3322);
+            color: #fff;
+            border: 4px solid #FFD700;
+            border-radius: 16px;
+            cursor: pointer;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 2px 2px 3px #000;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            transition: transform 0.15s;
+            animation: startPulse 2s ease-in-out infinite;
+        }
+        @keyframes startPulse {
+            0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+            50% { box-shadow: 0 6px 30px rgba(255,215,0,0.8); }
+        }
+        #startButton:hover {
+            transform: scale(1.08);
+        }
+        #instructionsBox {
+            margin-top: 30px;
+            padding: 15px 25px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 12px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.8;
+            text-align: center;
+            max-width: 500px;
+        }
+        .instruction-icon {
+            font-size: 20px;
+            margin-right: 6px;
+        }
+        /* Wave announcement */
+        #waveAnnouncement {
+            position: absolute;
+            top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 24px;
-            padding: 10px 20px;
-            z-index: 2;
+            z-index: 5;
             display: none;
+            text-align: center;
+        }
+        #waveAnnouncement .wave-text {
+            font-size: 60px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #FF6347;
+            text-shadow: 3px 3px 6px #000, 0 0 40px rgba(255,99,71,0.8);
+            animation: waveZoom 1.5s ease-out forwards;
+        }
+        #waveAnnouncement .wave-subtitle {
+            font-size: 24px;
+            color: #FFD700;
+            font-family: Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000;
+            animation: waveZoom 1.5s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+        @keyframes waveZoom {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
         }
     </style>
 </head>
 <body>
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <div id="gameTitle">Hammer the Chickens!</div>
+        <div id="gameSubtitle">How long can you defend your farm?</div>
+        <button id="startButton">START GAME</button>
+        <div id="instructionsBox">
+            <div><span class="instruction-icon">&#128296;</span> Click or tap to swing hammer</div>
+            <div><span class="instruction-icon">&#127942;</span> Chain hits for combo multipliers</div>
+            <div><span class="instruction-icon">&#11088;</span> Catch golden chickens for huge bonuses</div>
+            <div><span class="instruction-icon">&#127873;</span> Grab power-ups: Freeze, Bomb, Double Points</div>
+            <div><span class="instruction-icon">&#9888;&#65039;</span> Game over if 20 chickens escape!</div>
+        </div>
+    </div>
+
     <canvas id="gameCanvas" width="800" height="600"></canvas>
+
     <div id="topBar">
         <div id="score">Score: 0</div>
-        <div id="maxChickensDisplay"></div>
+        <div id="waveDisplay">Wave 1</div>
+        <div id="highScoreDisplay">Best: 0</div>
     </div>
-    <div id="gameOver">Game Over</div>
-    <div id="finalScore"></div>
-    <button id="restartButton">Restart Game</button>
+
+    <div id="powerUpStatus"></div>
+
+    <div id="dangerLabel">Chicken Overload</div>
+    <div id="dangerBarContainer">
+        <div id="dangerBar"></div>
+    </div>
+
+    <!-- Wave Announcement -->
+    <div id="waveAnnouncement">
+        <div class="wave-text"></div>
+        <div class="wave-subtitle"></div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="gameOverOverlay">
+        <div id="gameOverText">GAME OVER</div>
+        <div id="finalScoreText"></div>
+        <div id="finalWaveText"></div>
+        <div id="newHighScore">NEW HIGH SCORE!</div>
+        <button id="restartButton">Play Again</button>
+    </div>
 
     <script>
-        // Get the canvas and context
+        // ========== CANVAS SETUP ==========
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Game variables
-        let score = 0;
-        let multiplier = 1;
-        let lastHitTime = 0;
-        let comboTimeLimit = 2000; // Time in milliseconds to continue combo
-        let chickens = [];
-        const maxChickens = 20; // Game over condition
+        // ========== GAME CONFIGURATION ==========
+        const CONFIG = {
+            maxChickens: 20,
+            chickenWidth: 60,
+            chickenHeight: 60,
+            hammerWidth: 50,
+            hammerHeight: 50,
+            comboTimeLimit: 2000,
+            baseSpawnInterval: 1000,
+            minSpawnInterval: 250,
+            baseChickenSpeed: 2,
+            maxChickenSpeed: 7,
+            goldenChickenChance: 0.08,     // 8% chance per spawn
+            powerUpDropChance: 0.03,        // 3% chance per frame (checked periodically)
+            powerUpSize: 35,
+            particleCount: 12,
+            shakeIntensity: 8,
+            shakeDuration: 300,
+            freezeDuration: 4000,
+            doublePointsDuration: 8000,
+            waveInterval: 25000,            // New wave every 25 seconds
+        };
+
+        // ========== ASSET LOADING ==========
         const chickenImage = new Image();
         chickenImage.src = 'chicken.png';
         const chickenDeadImage = new Image();
         chickenDeadImage.src = 'chicken-dead.png';
-        const chickenWidth = 60;
-        const chickenHeight = 60;
-        let spawnInterval = 1000; // Time in milliseconds
-        let chickenSpeed = 2;
-        const minSpawnInterval = 300; // Minimum spawn interval
-        const maxChickenSpeed = 6; // Maximum chicken speed
-        let gameTime = 0; // Time since game started in milliseconds
-
-        // Hammer variables
         const hammerOffImage = new Image();
         hammerOffImage.src = 'hammer-off.png';
         const hammerOnImage = new Image();
         hammerOnImage.src = 'hammer-on.png';
-        let hammerImage = hammerOffImage;
-        const hammerWidth = 50;
-        const hammerHeight = 50;
-        let mouseX = canvas.width / 2;
-        let mouseY = canvas.height / 2;
-        let isMouseDown = false;
 
-        // Sound
+        let hammerImage = hammerOffImage;
+
+        // Audio
         const hitSound = new Audio('hit-sound.mp3');
         const missSound = new Audio('miss-sound.mp3');
-
-        // Background music
         const backgroundMusic = new Audio('background.mp3');
         backgroundMusic.loop = true;
         backgroundMusic.volume = 0.2;
         let backgroundMusicStarted = false;
 
-        // Game state
+        // ========== GAME STATE ==========
+        let score = 0;
+        let multiplier = 1;
+        let lastHitTime = 0;
+        let chickens = [];
+        let particles = [];
+        let floatingTexts = [];
+        let powerUps = [];
+        let spawnInterval = CONFIG.baseSpawnInterval;
+        let chickenSpeed = CONFIG.baseChickenSpeed;
+        let gameTime = 0;
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+        let isMouseDown = false;
         let isGameOver = false;
         let startTime;
+        let highScore = parseInt(localStorage.getItem('chickenGameHighScore')) || 0;
+        let totalChickensHit = 0;
 
-        // Initialize game
+        // Wave system
+        let currentWave = 1;
+        let lastWaveTime = 0;
+        let waveAnnouncementTimeout = null;
+
+        // Screen shake
+        let shakeTime = 0;
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+
+        // Active power-ups
+        let freezeActive = false;
+        let freezeEndTime = 0;
+        let doublePointsActive = false;
+        let doublePointsEndTime = 0;
+
+        // Power-up spawn timer
+        let lastPowerUpSpawn = 0;
+        let powerUpSpawnCooldown = 8000; // Min time between power-up spawns
+
+        // Spawn timer ID
+        let spawnTimeoutId = null;
+
+        // ========== HIGH SCORE ==========
+        function loadHighScore() {
+            highScore = parseInt(localStorage.getItem('chickenGameHighScore')) || 0;
+            document.getElementById('highScoreDisplay').innerText = 'Best: ' + highScore;
+        }
+
+        function saveHighScore() {
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('chickenGameHighScore', highScore);
+                return true;
+            }
+            return false;
+        }
+
+        // ========== SYNTHESIZED SOUND EFFECTS ==========
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function ensureAudioCtx() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+        }
+
+        function playPowerUpSound() {
+            ensureAudioCtx();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function playFreezeSound() {
+            ensureAudioCtx();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1500, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playBombSound() {
+            ensureAudioCtx();
+            // Low rumble
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.6);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.6);
+            // Noise burst
+            const bufferSize = audioCtx.sampleRate * 0.3;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+            }
+            const noise = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            noise.start(audioCtx.currentTime);
+        }
+
+        function playGoldenHitSound() {
+            ensureAudioCtx();
+            const notes = [800, 1000, 1200, 1600];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.08);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.08 + 0.3);
+                osc.start(audioCtx.currentTime + i * 0.08);
+                osc.stop(audioCtx.currentTime + i * 0.08 + 0.3);
+            });
+        }
+
+        function playWaveSound() {
+            ensureAudioCtx();
+            const notes = [523, 659, 784, 1047];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.12);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.12 + 0.25);
+                osc.start(audioCtx.currentTime + i * 0.12);
+                osc.stop(audioCtx.currentTime + i * 0.12 + 0.25);
+            });
+        }
+
+        // ========== PARTICLE SYSTEM ==========
+        function spawnParticles(x, y, color, count, isGolden) {
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+                const speed = 2 + Math.random() * 4;
+                const size = isGolden ? (4 + Math.random() * 6) : (3 + Math.random() * 4);
+                particles.push({
+                    x: x,
+                    y: y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed - 2,
+                    size: size,
+                    color: color,
+                    life: 1.0,
+                    decay: 0.015 + Math.random() * 0.02,
+                    gravity: 0.1,
+                    isGolden: isGolden
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.dy += p.gravity;
+                p.life -= p.decay;
+                p.size *= 0.98;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.life;
+                if (p.isGolden) {
+                    // Glowing golden particle
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#FFD700';
+                }
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                // Draw feather-like shapes
+                ctx.ellipse(p.x, p.y, p.size, p.size * 0.5, Math.atan2(p.dy, p.dx), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        // ========== FLOATING TEXT ==========
+        function spawnFloatingText(x, y, text, color, size) {
+            floatingTexts.push({
+                x: x,
+                y: y,
+                text: text,
+                color: color,
+                size: size || 24,
+                life: 1.0,
+                dy: -2
+            });
+        }
+
+        function updateFloatingTexts() {
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y += ft.dy;
+                ft.dy *= 0.98;
+                ft.life -= 0.02;
+                if (ft.life <= 0) {
+                    floatingTexts.splice(i, 1);
+                }
+            }
+        }
+
+        function drawFloatingTexts() {
+            floatingTexts.forEach(ft => {
+                ctx.save();
+                ctx.globalAlpha = ft.life;
+                ctx.fillStyle = ft.color;
+                ctx.font = `bold ${ft.size}px Arial Black, Arial`;
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#000';
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            });
+        }
+
+        // ========== SCREEN SHAKE ==========
+        function triggerShake(intensity) {
+            shakeTime = CONFIG.shakeDuration;
+            shakeOffsetX = 0;
+            shakeOffsetY = 0;
+        }
+
+        function updateShake(dt) {
+            if (shakeTime > 0) {
+                shakeTime -= dt;
+                const intensity = CONFIG.shakeIntensity * (shakeTime / CONFIG.shakeDuration);
+                shakeOffsetX = (Math.random() - 0.5) * intensity * 2;
+                shakeOffsetY = (Math.random() - 0.5) * intensity * 2;
+            } else {
+                shakeOffsetX = 0;
+                shakeOffsetY = 0;
+            }
+        }
+
+        // ========== POWER-UP SYSTEM ==========
+        const POWERUP_TYPES = {
+            FREEZE: {
+                name: 'FREEZE',
+                icon: '\u2744',  // snowflake
+                color: '#00BFFF',
+                bgColor: 'rgba(0, 191, 255, 0.3)',
+                borderColor: '#00BFFF'
+            },
+            BOMB: {
+                name: 'BOMB',
+                icon: '\uD83D\uDCA3',  // bomb
+                color: '#FF4444',
+                bgColor: 'rgba(255, 68, 68, 0.3)',
+                borderColor: '#FF4444'
+            },
+            DOUBLE: {
+                name: 'DOUBLE',
+                icon: '\u00D72',  // x2
+                color: '#FFD700',
+                bgColor: 'rgba(255, 215, 0, 0.3)',
+                borderColor: '#FFD700'
+            }
+        };
+
+        function spawnPowerUp() {
+            const currentTime = Date.now();
+            if (currentTime - lastPowerUpSpawn < powerUpSpawnCooldown) return;
+            if (powerUps.length >= 2) return; // Max 2 power-ups on screen
+
+            const types = Object.keys(POWERUP_TYPES);
+            const type = POWERUP_TYPES[types[Math.floor(Math.random() * types.length)]];
+            const x = 40 + Math.random() * (canvas.width - 80);
+            const y = canvas.height * 0.55 + Math.random() * (canvas.height * 0.35);
+
+            powerUps.push({
+                x: x,
+                y: y,
+                type: type,
+                spawnTime: currentTime,
+                lifetime: 6000, // 6 seconds to grab it
+                bobOffset: Math.random() * Math.PI * 2,
+                pulse: 0
+            });
+
+            lastPowerUpSpawn = currentTime;
+        }
+
+        function updatePowerUps() {
+            const currentTime = Date.now();
+
+            // Update active power-up timers
+            if (freezeActive && currentTime > freezeEndTime) {
+                freezeActive = false;
+            }
+            if (doublePointsActive && currentTime > doublePointsEndTime) {
+                doublePointsActive = false;
+            }
+
+            // Remove expired power-ups
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                if (currentTime - powerUps[i].spawnTime > powerUps[i].lifetime) {
+                    powerUps.splice(i, 1);
+                }
+            }
+
+            // Try to spawn new power-ups periodically
+            if (Math.random() < 0.005 && currentWave >= 2) {
+                spawnPowerUp();
+            }
+
+            // Update power-up status display
+            updatePowerUpStatusDisplay();
+        }
+
+        function updatePowerUpStatusDisplay() {
+            const container = document.getElementById('powerUpStatus');
+            let html = '';
+            if (freezeActive) {
+                const remaining = Math.ceil((freezeEndTime - Date.now()) / 1000);
+                html += `<span class="powerup-active" style="background:rgba(0,191,255,0.3);color:#00BFFF;border:2px solid #00BFFF;">\u2744 FROZEN ${remaining}s</span>`;
+            }
+            if (doublePointsActive) {
+                const remaining = Math.ceil((doublePointsEndTime - Date.now()) / 1000);
+                html += `<span class="powerup-active" style="background:rgba(255,215,0,0.3);color:#FFD700;border:2px solid #FFD700;">\u00D72 DOUBLE ${remaining}s</span>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function drawPowerUps() {
+            const currentTime = Date.now();
+            powerUps.forEach(pu => {
+                const elapsed = currentTime - pu.spawnTime;
+                const remaining = pu.lifetime - elapsed;
+                const bobY = Math.sin(currentTime / 300 + pu.bobOffset) * 5;
+                const pulse = 1 + Math.sin(currentTime / 200) * 0.1;
+
+                ctx.save();
+
+                // Flash when about to expire
+                if (remaining < 2000) {
+                    ctx.globalAlpha = 0.5 + Math.sin(currentTime / 100) * 0.5;
+                }
+
+                const size = CONFIG.powerUpSize * pulse;
+
+                // Glow effect
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = pu.type.color;
+
+                // Background circle
+                ctx.fillStyle = pu.type.bgColor;
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y + bobY, size * 0.7, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Border
+                ctx.strokeStyle = pu.type.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Icon
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = pu.type.color;
+                ctx.font = `bold ${size * 0.6}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(pu.type.icon, pu.x, pu.y + bobY);
+
+                ctx.restore();
+            });
+        }
+
+        function checkPowerUpCollision() {
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const pu = powerUps[i];
+                const dx = mouseX - pu.x;
+                const dy = mouseY - pu.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < CONFIG.powerUpSize) {
+                    activatePowerUp(pu.type);
+                    // Spawn grab particles
+                    spawnParticles(pu.x, pu.y, pu.type.color, 8, false);
+                    spawnFloatingText(pu.x, pu.y - 20, pu.type.name + '!', pu.type.color, 28);
+                    powerUps.splice(i, 1);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function activatePowerUp(type) {
+            const currentTime = Date.now();
+            switch (type.name) {
+                case 'FREEZE':
+                    freezeActive = true;
+                    freezeEndTime = currentTime + CONFIG.freezeDuration;
+                    playFreezeSound();
+                    break;
+                case 'BOMB':
+                    // Kill all live chickens on screen
+                    playBombSound();
+                    triggerShake(12);
+                    let bombKills = 0;
+                    chickens.forEach(chicken => {
+                        if (!chicken.isDead) {
+                            chicken.isDead = true;
+                            chicken.deathTime = currentTime;
+                            chicken.image = chickenDeadImage;
+                            bombKills++;
+                            totalChickensHit++;
+                            // Particles for each kill
+                            const cx = chicken.x + CONFIG.chickenWidth / 2;
+                            const cy = chicken.y + CONFIG.chickenHeight / 2;
+                            spawnParticles(cx, cy, '#FF4444', 6, false);
+                        }
+                    });
+                    score += bombKills * multiplier;
+                    if (bombKills > 0) {
+                        spawnFloatingText(canvas.width / 2, canvas.height / 2, 'BOOM! +' + (bombKills * multiplier), '#FF4444', 36);
+                    }
+                    updateScore();
+                    break;
+                case 'DOUBLE':
+                    doublePointsActive = true;
+                    doublePointsEndTime = currentTime + CONFIG.doublePointsDuration;
+                    playPowerUpSound();
+                    break;
+            }
+        }
+
+        // ========== WAVE SYSTEM ==========
+        function updateWaveSystem() {
+            const elapsed = Date.now() - startTime;
+            const newWave = Math.floor(elapsed / CONFIG.waveInterval) + 1;
+            if (newWave > currentWave) {
+                currentWave = newWave;
+                announceWave(currentWave);
+                applyWaveDifficulty();
+            }
+            document.getElementById('waveDisplay').innerText = 'Wave ' + currentWave;
+        }
+
+        function announceWave(wave) {
+            playWaveSound();
+            const container = document.getElementById('waveAnnouncement');
+            const textEl = container.querySelector('.wave-text');
+            const subEl = container.querySelector('.wave-subtitle');
+
+            const waveNames = [
+                '', 'The Flock Arrives', 'Clucking Chaos', 'Feather Storm',
+                'Pecking Frenzy', 'Chicken Apocalypse', 'Egg-streme Danger',
+                'The Rooster Rises', 'Fowl Play', 'Hen-demonium', 'Final Cluck'
+            ];
+
+            textEl.textContent = 'WAVE ' + wave;
+            subEl.textContent = waveNames[Math.min(wave, waveNames.length - 1)] || 'Endless Chaos';
+
+            // Force re-animation
+            container.style.display = 'none';
+            void container.offsetWidth;
+            container.style.display = 'block';
+
+            // Reset animation by cloning
+            const newText = textEl.cloneNode(true);
+            const newSub = subEl.cloneNode(true);
+            textEl.parentNode.replaceChild(newText, textEl);
+            subEl.parentNode.replaceChild(newSub, subEl);
+
+            if (waveAnnouncementTimeout) clearTimeout(waveAnnouncementTimeout);
+            waveAnnouncementTimeout = setTimeout(() => {
+                container.style.display = 'none';
+            }, 2000);
+        }
+
+        function applyWaveDifficulty() {
+            // Each wave speeds things up
+            const waveFactor = currentWave - 1;
+            spawnInterval = Math.max(CONFIG.baseSpawnInterval - waveFactor * 80, CONFIG.minSpawnInterval);
+            chickenSpeed = Math.min(CONFIG.baseChickenSpeed + waveFactor * 0.4, CONFIG.maxChickenSpeed);
+        }
+
+        // ========== GOLDEN CHICKEN ==========
+        function createGoldenChicken(chicken) {
+            chicken.isGolden = true;
+            // Golden chickens are faster
+            chicken.dx *= 1.5;
+            chicken.dy *= 1.3;
+            return chicken;
+        }
+
+        function drawGoldenGlow(chicken) {
+            if (!chicken.isGolden || chicken.isDead) return;
+            ctx.save();
+            const cx = chicken.x + CONFIG.chickenWidth / 2;
+            const cy = chicken.y + CONFIG.chickenHeight / 2;
+            const pulse = 1 + Math.sin(Date.now() / 150) * 0.3;
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, CONFIG.chickenWidth * pulse);
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
+            gradient.addColorStop(0.5, 'rgba(255, 215, 0, 0.15)');
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(cx, cy, CONFIG.chickenWidth * pulse, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawGoldenTint(chicken) {
+            // Draw golden overlay on the chicken
+            ctx.save();
+            ctx.globalAlpha = 0.35 + Math.sin(Date.now() / 200) * 0.15;
+            ctx.globalCompositeOperation = 'source-atop';
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(chicken.x, chicken.y, CONFIG.chickenWidth, CONFIG.chickenHeight);
+            ctx.restore();
+        }
+
+        // ========== COMBO SYSTEM VISUALS ==========
+        function getComboColor(mult) {
+            if (mult >= 10) return '#FF0000';      // Red fire
+            if (mult >= 7) return '#FF4500';        // Orange red
+            if (mult >= 5) return '#FF8C00';        // Dark orange
+            if (mult >= 3) return '#FFD700';        // Gold
+            return '#00BFFF';                        // Blue
+        }
+
+        function getComboLabel(mult) {
+            if (mult >= 15) return 'LEGENDARY!';
+            if (mult >= 10) return 'ON FIRE!';
+            if (mult >= 7) return 'UNSTOPPABLE!';
+            if (mult >= 5) return 'AMAZING!';
+            if (mult >= 3) return 'GREAT!';
+            return '';
+        }
+
+        // ========== DANGER BAR ==========
+        function updateDangerBar() {
+            const liveChickens = chickens.filter(c => !c.isDead).length;
+            const percentage = Math.min((liveChickens / CONFIG.maxChickens) * 100, 100);
+            const bar = document.getElementById('dangerBar');
+            bar.style.width = percentage + '%';
+
+            // Pulse the bar when danger is high
+            if (percentage > 70) {
+                bar.style.animation = 'none';
+                bar.style.background = `linear-gradient(90deg, #ff0000, #ff4444)`;
+                document.getElementById('dangerBarContainer').style.borderColor =
+                    Math.sin(Date.now() / 100) > 0 ? '#ff0000' : '#fff';
+            } else {
+                bar.style.background = 'linear-gradient(90deg, #00ff00, #ffff00, #ff0000)';
+                document.getElementById('dangerBarContainer').style.borderColor = '#fff';
+            }
+        }
+
+        // ========== FREEZE VISUAL OVERLAY ==========
+        function drawFreezeOverlay() {
+            if (!freezeActive) return;
+            ctx.save();
+            ctx.fillStyle = 'rgba(100, 200, 255, 0.08)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw some snowflake particles
+            const t = Date.now();
+            ctx.fillStyle = 'rgba(200, 230, 255, 0.4)';
+            for (let i = 0; i < 15; i++) {
+                const x = ((t / 20 + i * 97) % canvas.width);
+                const y = ((t / (15 + i * 3) + i * 53) % canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillText('\u2744', x, y);
+            }
+            ctx.restore();
+        }
+
+        // ========== MAIN GAME FUNCTIONS ==========
+
         function init() {
+            loadHighScore();
+
+            // Start screen
+            document.getElementById('startButton').addEventListener('click', startGame);
+            document.getElementById('restartButton').addEventListener('click', restartGame);
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            canvas.style.cursor = 'none';
+
             // Wait for images to load
             let imagesLoaded = 0;
-            const totalImages = 4; // Updated to include chickenDeadImage
+            const totalImages = 4;
             function imageLoaded() {
                 imagesLoaded++;
                 if (imagesLoaded === totalImages) {
-                    // All images loaded, start game
-                    startTime = Date.now();
-                    document.getElementById('maxChickensDisplay').innerText = 'Maximum allowed chickens: ' + maxChickens;
-                    spawnChicken();
-                    update();
-                    canvas.addEventListener('mousedown', hammerDown);
-                    canvas.addEventListener('mouseup', hammerUp);
-                    canvas.addEventListener('mousemove', updateMousePosition);
-                    // For touch devices
-                    canvas.addEventListener('touchstart', hammerDown);
-                    canvas.addEventListener('touchend', hammerUp);
-                    canvas.addEventListener('touchmove', updateTouchPosition);
+                    beginGame();
                 }
             }
-            chickenImage.onload = imageLoaded;
-            chickenDeadImage.onload = imageLoaded;
-            hammerOffImage.onload = imageLoaded;
-            hammerOnImage.onload = imageLoaded;
 
-            // Event listener for restart button
-            document.getElementById('restartButton').addEventListener('click', restartGame);
+            // Check if images are already loaded (cached)
+            [chickenImage, chickenDeadImage, hammerOffImage, hammerOnImage].forEach(img => {
+                if (img.complete) {
+                    imageLoaded();
+                } else {
+                    img.onload = imageLoaded;
+                }
+            });
         }
+
+        function beginGame() {
+            startTime = Date.now();
+            lastPowerUpSpawn = Date.now();
+            lastWaveTime = Date.now();
+            currentWave = 1;
+
+            // Show wave 1 announcement
+            setTimeout(() => announceWave(1), 500);
+
+            spawnChicken();
+            canvas.addEventListener('mousedown', hammerDown);
+            canvas.addEventListener('mouseup', hammerUp);
+            canvas.addEventListener('mousemove', updateMousePosition);
+            canvas.addEventListener('touchstart', hammerDown);
+            canvas.addEventListener('touchend', hammerUp);
+            canvas.addEventListener('touchmove', updateTouchPosition);
+
+            lastFrameTime = Date.now();
+            update();
+        }
+
+        let lastFrameTime = 0;
 
         // Spawn chickens at random positions
         function spawnChicken() {
             if (isGameOver) return;
-            if (chickens.length < maxChickens) {
-                const x = Math.random() * (canvas.width - chickenWidth);
-                // Place chicken in lower 50% of canvas
-                const y = Math.random() * ((canvas.height - chickenHeight) / 2) + (canvas.height / 2);
+            const liveChickens = chickens.filter(c => !c.isDead).length;
+            if (liveChickens < CONFIG.maxChickens) {
+                const x = Math.random() * (canvas.width - CONFIG.chickenWidth);
+                const y = Math.random() * ((canvas.height - CONFIG.chickenHeight) / 2) + (canvas.height / 2);
                 const directionX = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * chickenSpeed + 1);
-                const directionY = -((Math.random() * chickenSpeed) + 1); // Move upwards
+                const directionY = -((Math.random() * chickenSpeed) + 1);
 
-                chickens.push({
+                const chicken = {
                     x: x,
                     y: y,
                     dx: directionX,
@@ -179,43 +1048,60 @@
                     deathTime: 0,
                     image: chickenImage,
                     opacity: 1.0,
-                    multiplierText: null, // For displaying multiplier
-                    textOpacity: 1.0 // Opacity for the text
-                });
+                    multiplierText: null,
+                    textOpacity: 1.0,
+                    isGolden: false,
+                    entryScale: 0  // For spawn animation
+                };
+
+                // Chance for golden chicken
+                if (Math.random() < CONFIG.goldenChickenChance) {
+                    createGoldenChicken(chicken);
+                }
+
+                chickens.push(chicken);
             } else {
-                // Game over condition
                 endGame();
                 return;
             }
-            // Schedule next spawn
-            setTimeout(spawnChicken, spawnInterval);
+            spawnTimeoutId = setTimeout(spawnChicken, spawnInterval);
         }
 
-        // Update game state
+        // Main game update loop
         function update() {
             if (isGameOver) return;
+
+            const now = Date.now();
+            const dt = now - lastFrameTime;
+            lastFrameTime = now;
+
             clearCanvas();
-            updateGameDifficulty();
+
+            // Apply screen shake
+            updateShake(dt);
+            ctx.save();
+            ctx.translate(shakeOffsetX, shakeOffsetY);
+
+            updateWaveSystem();
+            updatePowerUps();
             moveChickens();
+            drawPowerUps();
             drawChickens();
+            drawParticles();
+            updateParticles();
+            drawFloatingTexts();
+            updateFloatingTexts();
+            drawFreezeOverlay();
+            drawComboMeter();
             drawHammer();
+
+            ctx.restore();
+
+            updateDangerBar();
+
             requestAnimationFrame(update);
         }
 
-        // Update game difficulty over time
-        function updateGameDifficulty() {
-            gameTime = Date.now() - startTime;
-            // Increase difficulty every 10 seconds
-            const difficultyFactor = Math.floor(gameTime / 10000);
-
-            // Decrease spawnInterval but not below minSpawnInterval
-            spawnInterval = Math.max(1000 - difficultyFactor * 100, minSpawnInterval);
-
-            // Increase chickenSpeed but not above maxChickenSpeed
-            chickenSpeed = Math.min(2 + difficultyFactor * 0.5, maxChickenSpeed);
-        }
-
-        // Clear the canvas
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
@@ -226,16 +1112,23 @@
             for (let i = chickens.length - 1; i >= 0; i--) {
                 const chicken = chickens[i];
 
+                // Spawn animation
+                if (chicken.entryScale < 1) {
+                    chicken.entryScale = Math.min(chicken.entryScale + 0.05, 1);
+                }
+
                 if (chicken.isDead) {
-                    // Fade out effect
                     const elapsed = currentTime - chicken.deathTime;
                     chicken.opacity = 1 - (elapsed / 1000);
-                    chicken.textOpacity = chicken.opacity; // Sync text opacity with chicken opacity
+                    chicken.textOpacity = chicken.opacity;
                     if (chicken.opacity <= 0) {
                         chickens.splice(i, 1);
                     }
                     continue;
                 }
+
+                // Don't move if frozen
+                if (freezeActive) continue;
 
                 chicken.x += chicken.dx;
                 chicken.y += chicken.dy;
@@ -244,14 +1137,14 @@
                 if (chicken.x <= 0) {
                     chicken.x = 0;
                     chicken.dx *= -1;
-                } else if (chicken.x + chickenWidth >= canvas.width) {
-                    chicken.x = canvas.width - chickenWidth;
+                } else if (chicken.x + CONFIG.chickenWidth >= canvas.width) {
+                    chicken.x = canvas.width - CONFIG.chickenWidth;
                     chicken.dx *= -1;
                 }
 
                 // Bounce off floor
-                if (chicken.y + chickenHeight >= canvas.height) {
-                    chicken.y = canvas.height - chickenHeight;
+                if (chicken.y + CONFIG.chickenHeight >= canvas.height) {
+                    chicken.y = canvas.height - CONFIG.chickenHeight;
                     chicken.dy *= -1;
                 }
 
@@ -263,7 +1156,8 @@
             }
 
             // Check for game over condition
-            if (chickens.length >= maxChickens) {
+            const liveCount = chickens.filter(c => !c.isDead).length;
+            if (liveCount >= CONFIG.maxChickens) {
                 endGame();
             }
         }
@@ -271,46 +1165,129 @@
         // Draw chickens
         function drawChickens() {
             chickens.forEach(chicken => {
+                // Draw golden glow first (behind chicken)
+                if (chicken.isGolden && !chicken.isDead) {
+                    drawGoldenGlow(chicken);
+                }
+
                 ctx.save();
                 ctx.globalAlpha = chicken.opacity;
 
+                const scale = chicken.entryScale;
+                const cw = CONFIG.chickenWidth * scale;
+                const ch = CONFIG.chickenHeight * scale;
+                const offsetX = (CONFIG.chickenWidth - cw) / 2;
+                const offsetY = (CONFIG.chickenHeight - ch) / 2;
+
+                if (chicken.isGolden && !chicken.isDead) {
+                    // Golden tint: draw with color overlay
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#FFD700';
+                }
+
+                // Draw frozen indicator
+                if (freezeActive && !chicken.isDead) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#00BFFF';
+                }
+
                 if (chicken.dx > 0) {
-                    // Moving right, flip the image
-                    ctx.translate(chicken.x + chickenWidth / 2, chicken.y);
+                    ctx.translate(chicken.x + offsetX + cw / 2, chicken.y + offsetY);
                     ctx.scale(-1, 1);
-                    ctx.drawImage(chicken.image, -chickenWidth / 2, 0, chickenWidth, chickenHeight);
+                    ctx.drawImage(chicken.image, -cw / 2, 0, cw, ch);
                 } else {
-                    // Moving left or not moving horizontally, draw normally
-                    ctx.translate(chicken.x, chicken.y);
-                    ctx.drawImage(chicken.image, 0, 0, chickenWidth, chickenHeight);
+                    ctx.translate(chicken.x + offsetX, chicken.y + offsetY);
+                    ctx.drawImage(chicken.image, 0, 0, cw, ch);
                 }
 
                 ctx.restore();
+
+                // Draw golden crown/star indicator
+                if (chicken.isGolden && !chicken.isDead) {
+                    ctx.save();
+                    ctx.font = '18px Arial';
+                    ctx.textAlign = 'center';
+                    const starY = chicken.y - 5 + Math.sin(Date.now() / 200) * 3;
+                    ctx.fillText('\u2B50', chicken.x + CONFIG.chickenWidth / 2, starY);
+                    ctx.restore();
+                }
 
                 // Draw multiplier text over dead chickens
                 if (chicken.isDead && chicken.multiplierText && chicken.textOpacity > 0) {
                     ctx.save();
                     ctx.globalAlpha = chicken.textOpacity;
-                    ctx.fillStyle = 'blue';
-                    ctx.font = `${chickenHeight * 0.4}px Arial`;
+                    ctx.fillStyle = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
+                    ctx.font = `bold ${CONFIG.chickenHeight * 0.5}px Arial Black, Arial`;
                     ctx.textAlign = 'center';
-                    const textX = chicken.x + chickenWidth / 2;
-                    const textY = chicken.y + chickenHeight / 2 - chickenHeight * 0.5;
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = '#000';
+                    const textX = chicken.x + CONFIG.chickenWidth / 2;
+                    const textY = chicken.y + CONFIG.chickenHeight / 2 - CONFIG.chickenHeight * 0.5;
                     ctx.fillText(chicken.multiplierText, textX, textY);
                     ctx.restore();
                 }
             });
         }
 
+        // Draw combo meter in top-right area
+        function drawComboMeter() {
+            if (multiplier < 2) return;
+            const currentTime = Date.now();
+            const timeSinceHit = currentTime - lastHitTime;
+            const comboRemaining = Math.max(0, 1 - timeSinceHit / CONFIG.comboTimeLimit);
+
+            if (comboRemaining <= 0) return;
+
+            const x = canvas.width - 120;
+            const y = 60;
+            const barWidth = 100;
+            const barHeight = 8;
+
+            // Combo text
+            ctx.save();
+            const comboColor = getComboColor(multiplier);
+            const comboSize = Math.min(20 + multiplier * 2, 40);
+            ctx.font = `bold ${comboSize}px Arial Black, Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = comboColor;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = comboColor;
+
+            // Pulsing effect
+            const pulse = 1 + Math.sin(currentTime / 100) * 0.05 * multiplier;
+            ctx.translate(x + barWidth / 2, y);
+            ctx.scale(pulse, pulse);
+            ctx.fillText('x' + multiplier, 0, 0);
+
+            // Combo label
+            const label = getComboLabel(multiplier);
+            if (label) {
+                ctx.font = 'bold 14px Arial';
+                ctx.fillStyle = comboColor;
+                ctx.fillText(label, 0, 18);
+            }
+
+            ctx.restore();
+
+            // Timer bar
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(x, y + 22, barWidth, barHeight);
+            ctx.fillStyle = comboColor;
+            ctx.fillRect(x, y + 22, barWidth * comboRemaining, barHeight);
+            ctx.restore();
+        }
+
         // Draw hammer
         function drawHammer() {
-            const hammerX = mouseX - hammerWidth / 2;
-            const hammerY = mouseY - hammerHeight / 2;
-            ctx.drawImage(hammerImage, hammerX, hammerY, hammerWidth, hammerHeight);
+            const hammerX = mouseX - CONFIG.hammerWidth / 2;
+            const hammerY = mouseY - CONFIG.hammerHeight / 2;
+            ctx.drawImage(hammerImage, hammerX, hammerY, CONFIG.hammerWidth, CONFIG.hammerHeight);
         }
 
         // Handle hammering
         function hammerDown(event) {
+            ensureAudioCtx();
             if (!backgroundMusicStarted) {
                 backgroundMusic.play();
                 backgroundMusicStarted = true;
@@ -318,12 +1295,18 @@
             if (isGameOver) return;
             isMouseDown = true;
             hammerImage = hammerOnImage;
+
+            // Check power-up collision first
+            const gotPowerUp = checkPowerUpCollision();
+            if (gotPowerUp) {
+                event.preventDefault();
+                return;
+            }
+
             const hit = checkHit();
             if (!hit) {
-                // Play miss sound
                 missSound.currentTime = 0;
                 missSound.play();
-                // Reset multiplier
                 multiplier = 1;
             }
             event.preventDefault();
@@ -341,7 +1324,6 @@
             mouseY = event.clientY - rect.top;
         }
 
-        // For touch devices
         function updateTouchPosition(event) {
             const rect = canvas.getBoundingClientRect();
             mouseX = event.touches[0].clientX - rect.left;
@@ -356,55 +1338,111 @@
                 const chicken = chickens[i];
                 if (!chicken.isDead &&
                     mouseX >= chicken.x &&
-                    mouseX <= chicken.x + chickenWidth &&
+                    mouseX <= chicken.x + CONFIG.chickenWidth &&
                     mouseY >= chicken.y &&
-                    mouseY <= chicken.y + chickenHeight
+                    mouseY <= chicken.y + CONFIG.chickenHeight
                 ) {
-                    // Play hit sound
-                    hitSound.currentTime = 0; // Reset sound to start
+                    // Play appropriate sound
+                    if (chicken.isGolden) {
+                        playGoldenHitSound();
+                    }
+                    hitSound.currentTime = 0;
                     hitSound.play();
 
                     // Change chicken to dead state
                     chicken.isDead = true;
                     chicken.deathTime = currentTime;
                     chicken.image = chickenDeadImage;
+                    totalChickensHit++;
 
                     // Update combo multiplier
-                    if (currentTime - lastHitTime <= comboTimeLimit) {
+                    if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
                         multiplier++;
                     } else {
                         multiplier = 1;
                     }
                     lastHitTime = currentTime;
 
-                    // Increment score with multiplier
-                    score += multiplier;
+                    // Calculate points
+                    let points = multiplier;
+                    if (chicken.isGolden) points *= 10;
+                    if (doublePointsActive) points *= 2;
+
+                    score += points;
                     updateScore();
 
-                    // If multiplier is 2x or more, set multiplierText
+                    // Visual feedback
+                    const cx = chicken.x + CONFIG.chickenWidth / 2;
+                    const cy = chicken.y + CONFIG.chickenHeight / 2;
+
+                    // Particles - feathers!
+                    const featherColors = chicken.isGolden
+                        ? ['#FFD700', '#FFA500', '#FFEC8B', '#FFE4B5']
+                        : ['#FFFFFF', '#F5DEB3', '#DEB887', '#CD853F'];
+                    featherColors.forEach(color => {
+                        spawnParticles(cx, cy, color, 3, chicken.isGolden);
+                    });
+
+                    // Floating score text
+                    let scoreText = '+' + points;
+                    const textColor = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
+                    const textSize = chicken.isGolden ? 32 : (20 + Math.min(multiplier * 2, 16));
+                    spawnFloatingText(cx, cy - 20, scoreText, textColor, textSize);
+
+                    // Multiplier text on chicken
                     if (multiplier >= 2) {
                         chicken.multiplierText = 'x' + multiplier;
                     }
+                    if (chicken.isGolden) {
+                        chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
+                    }
 
-                    return true; // Hit happened
+                    // Screen shake on big combos
+                    if (multiplier >= 5) {
+                        triggerShake(multiplier);
+                    }
+
+                    // Extra particles at high combos
+                    if (multiplier >= 8) {
+                        spawnParticles(cx, cy, getComboColor(multiplier), 8, true);
+                    }
+
+                    return true;
                 }
             }
-            return false; // No hit
+            return false;
         }
 
         // Update the score display
         function updateScore() {
-            document.getElementById('score').innerText = 'Score: ' + score + ' (x' + multiplier + ')';
+            let display = 'Score: ' + score;
+            if (multiplier > 1) display += ' (x' + multiplier + ')';
+            if (doublePointsActive) display += ' [2x ACTIVE]';
+            document.getElementById('score').innerText = display;
         }
 
         // End the game
         function endGame() {
             isGameOver = true;
-            document.getElementById('gameOver').style.display = 'block';
-            // Display the final score
-            document.getElementById('finalScore').innerText = 'Your final score: ' + score;
-            document.getElementById('finalScore').style.display = 'block';
-            document.getElementById('restartButton').style.display = 'block';
+
+            // Cancel any pending spawn
+            if (spawnTimeoutId) {
+                clearTimeout(spawnTimeoutId);
+                spawnTimeoutId = null;
+            }
+
+            const isNewHighScore = saveHighScore();
+
+            document.getElementById('gameOverOverlay').classList.add('show');
+            document.getElementById('finalScoreText').innerText = 'Score: ' + score;
+            document.getElementById('finalWaveText').innerText = 'Wave ' + currentWave + ' | Chickens Hit: ' + totalChickensHit;
+
+            if (isNewHighScore) {
+                document.getElementById('newHighScore').style.display = 'block';
+            } else {
+                document.getElementById('newHighScore').style.display = 'none';
+            }
+
             // Remove event listeners
             canvas.removeEventListener('mousedown', hammerDown);
             canvas.removeEventListener('mouseup', hammerUp);
@@ -412,46 +1450,59 @@
             canvas.removeEventListener('touchstart', hammerDown);
             canvas.removeEventListener('touchend', hammerUp);
             canvas.removeEventListener('touchmove', updateTouchPosition);
-            // Pause background music
+
             backgroundMusic.pause();
-            // Show cursor over the canvas
             canvas.style.cursor = 'default';
         }
 
         // Restart the game
         function restartGame() {
-            // Reset game variables
             score = 0;
             multiplier = 1;
             lastHitTime = 0;
             chickens = [];
-            spawnInterval = 1000;
-            chickenSpeed = 2;
+            particles = [];
+            floatingTexts = [];
+            powerUps = [];
+            spawnInterval = CONFIG.baseSpawnInterval;
+            chickenSpeed = CONFIG.baseChickenSpeed;
             gameTime = 0;
             isGameOver = false;
-            document.getElementById('gameOver').style.display = 'none';
-            document.getElementById('finalScore').style.display = 'none';
-            document.getElementById('restartButton').style.display = 'none';
+            currentWave = 1;
+            totalChickensHit = 0;
+            freezeActive = false;
+            doublePointsActive = false;
+            shakeTime = 0;
+            shakeOffsetX = 0;
+            shakeOffsetY = 0;
+
+            document.getElementById('gameOverOverlay').classList.remove('show');
+            document.getElementById('powerUpStatus').innerHTML = '';
             updateScore();
+            loadHighScore();
+
             startTime = Date.now();
-            // Reset background music
+            lastPowerUpSpawn = Date.now();
+            lastWaveTime = Date.now();
+
             backgroundMusic.currentTime = 0;
             backgroundMusicStarted = false;
-            // Re-add event listeners
+
             canvas.addEventListener('mousedown', hammerDown);
             canvas.addEventListener('mouseup', hammerUp);
             canvas.addEventListener('mousemove', updateMousePosition);
             canvas.addEventListener('touchstart', hammerDown);
             canvas.addEventListener('touchend', hammerUp);
             canvas.addEventListener('touchmove', updateTouchPosition);
-            // Restart spawning and updating
+
+            setTimeout(() => announceWave(1), 500);
             spawnChicken();
+            lastFrameTime = Date.now();
             update();
-            // Hide cursor over the canvas
             canvas.style.cursor = 'none';
         }
 
-        // Start the game
+        // Start everything
         init();
     </script>
 </body>
