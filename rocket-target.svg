@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50">
+  <!-- Outer target ring -->
+  <circle cx="25" cy="25" r="20" fill="none" stroke="#ff8800" stroke-width="2.5" opacity="0.8"/>
+  <!-- Middle ring -->
+  <circle cx="25" cy="25" r="12" fill="none" stroke="#ff6600" stroke-width="2" opacity="0.7"/>
+  <!-- Inner ring -->
+  <circle cx="25" cy="25" r="5" fill="none" stroke="#ff4400" stroke-width="2"/>
+  <!-- Center dot -->
+  <circle cx="25" cy="25" r="2" fill="#ff4400"/>
+  <!-- Corner brackets -->
+  <path d="M5,15 L5,5 L15,5" fill="none" stroke="#ff8800" stroke-width="2" stroke-linecap="round"/>
+  <path d="M35,5 L45,5 L45,15" fill="none" stroke="#ff8800" stroke-width="2" stroke-linecap="round"/>
+  <path d="M45,35 L45,45 L35,45" fill="none" stroke="#ff8800" stroke-width="2" stroke-linecap="round"/>
+  <path d="M15,45 L5,45 L5,35" fill="none" stroke="#ff8800" stroke-width="2" stroke-linecap="round"/>
+</svg>

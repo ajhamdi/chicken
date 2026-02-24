@@ -272,6 +272,121 @@
             50% { transform: scale(1.2); opacity: 1; }
             100% { transform: scale(1); opacity: 0; }
         }
+        /* Weapon selector bar */
+        #weaponBar {
+            position: absolute;
+            bottom: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 2;
+            pointer-events: auto;
+        }
+        .weapon-slot {
+            width: 70px;
+            height: 44px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid #555;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s, border-color 0.2s;
+            position: relative;
+        }
+        .weapon-slot:hover {
+            transform: scale(1.08);
+        }
+        .weapon-slot.active {
+            border-color: #FFD700;
+            box-shadow: 0 0 12px rgba(255,215,0,0.5);
+            background: rgba(255,215,0,0.15);
+        }
+        .weapon-slot.locked {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none;
+        }
+        .weapon-slot .weapon-name {
+            font-size: 9px;
+            color: #ccc;
+            font-family: Arial, sans-serif;
+            margin-top: 2px;
+        }
+        .weapon-slot .weapon-key {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 9px;
+            color: #888;
+            font-family: monospace;
+        }
+        .weapon-slot .weapon-icon {
+            font-size: 18px;
+        }
+        .weapon-slot .lock-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #aaa;
+            background: rgba(0,0,0,0.4);
+            border-radius: 6px;
+        }
+        /* Weapon unlock announcement */
+        #weaponUnlockAnnouncement {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 6;
+            display: none;
+            text-align: center;
+        }
+        #weaponUnlockAnnouncement .unlock-text {
+            font-size: 32px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #00FF88;
+            text-shadow: 3px 3px 6px #000, 0 0 30px rgba(0,255,136,0.8);
+            animation: unlockPop 2s ease-out forwards;
+        }
+        #weaponUnlockAnnouncement .unlock-weapon {
+            font-size: 48px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px #000, 0 0 40px rgba(255,215,0,0.8);
+            animation: unlockPop 2s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+        #weaponUnlockAnnouncement .unlock-hint {
+            font-size: 18px;
+            color: #aaddff;
+            font-family: Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000;
+            animation: unlockPop 2s ease-out 0.4s forwards;
+            opacity: 0;
+        }
+        @keyframes unlockPop {
+            0% { transform: scale(0.3); opacity: 0; }
+            30% { transform: scale(1.3); opacity: 1; }
+            60% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        /* Rocket cooldown indicator */
+        .rocket-cooldown {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: #ff4400;
+            border-radius: 0 0 6px 6px;
+            transition: width 0.1s linear;
+        }
     </style>
 </head>
 <body>
@@ -285,6 +400,7 @@
             <div><span class="instruction-icon">&#127942;</span> Chain hits for combo multipliers</div>
             <div><span class="instruction-icon">&#11088;</span> Catch golden chickens for huge bonuses</div>
             <div><span class="instruction-icon">&#127873;</span> Grab power-ups: Freeze, Bomb, Double Points</div>
+            <div><span class="instruction-icon">&#128299;</span> New weapons unlock as waves progress!</div>
             <div><span class="instruction-icon">&#9888;&#65039;</span> Game over if 20 chickens escape!</div>
         </div>
     </div>
@@ -299,6 +415,27 @@
 
     <div id="powerUpStatus"></div>
 
+    <!-- Weapon Selector Bar (hidden initially, shown during gameplay) -->
+    <div id="weaponBar" style="display:none;">
+        <div class="weapon-slot active" data-weapon="hammer" onclick="switchWeapon('hammer')">
+            <span class="weapon-key">1</span>
+            <span class="weapon-icon">&#128296;</span>
+            <span class="weapon-name">Hammer</span>
+        </div>
+        <div class="weapon-slot locked" data-weapon="machinegun" onclick="switchWeapon('machinegun')">
+            <span class="weapon-key">2</span>
+            <span class="weapon-icon">&#128299;</span>
+            <span class="weapon-name">Machine Gun</span>
+            <span class="lock-overlay">&#128274; W3</span>
+        </div>
+        <div class="weapon-slot locked" data-weapon="rocket" onclick="switchWeapon('rocket')">
+            <span class="weapon-key">3</span>
+            <span class="weapon-icon">&#128640;</span>
+            <span class="weapon-name">Rocket</span>
+            <span class="lock-overlay">&#128274; W5</span>
+        </div>
+    </div>
+
     <div id="dangerLabel">Chicken Overload</div>
     <div id="dangerBarContainer">
         <div id="dangerBar"></div>
@@ -308,6 +445,13 @@
     <div id="waveAnnouncement">
         <div class="wave-text"></div>
         <div class="wave-subtitle"></div>
+    </div>
+
+    <!-- Weapon Unlock Announcement -->
+    <div id="weaponUnlockAnnouncement">
+        <div class="unlock-text"></div>
+        <div class="unlock-weapon"></div>
+        <div class="unlock-hint"></div>
     </div>
 
     <!-- Game Over Overlay -->
@@ -345,6 +489,15 @@
             freezeDuration: 4000,
             doublePointsDuration: 8000,
             waveInterval: 25000,            // New wave every 25 seconds
+            // Weapon settings
+            machineGunFireRate: 140,        // ms between shots
+            machineGunBulletSpeed: 14,      // pixels per frame
+            machineGunSpread: 0.08,         // bullet spread angle (radians)
+            rocketCooldown: 1800,           // ms between rockets
+            rocketSpeed: 7,                 // pixels per frame
+            rocketBlastRadius: 90,          // explosion radius in pixels
+            machineGunUnlockWave: 3,
+            rocketUnlockWave: 5,
         };
 
         // ========== ASSET LOADING ==========
@@ -358,6 +511,12 @@
         hammerOnImage.src = 'hammer-on.png';
 
         let hammerImage = hammerOffImage;
+
+        // Weapon cursor images
+        const crosshairImage = new Image();
+        crosshairImage.src = 'crosshair.svg';
+        const rocketTargetImage = new Image();
+        rocketTargetImage.src = 'rocket-target.svg';
 
         // Audio
         const hitSound = new Audio('hit-sound.mp3');
@@ -408,6 +567,17 @@
 
         // Spawn timer ID
         let spawnTimeoutId = null;
+
+        // ========== WEAPON SYSTEM STATE ==========
+        let currentWeapon = 'hammer';
+        let unlockedWeapons = ['hammer'];
+        let bullets = [];           // Machine gun bullets
+        let rockets = [];           // Rocket projectiles
+        let explosions = [];        // Explosion effects
+        let lastFireTime = 0;       // Machine gun auto-fire timer
+        let lastRocketTime = 0;     // Rocket cooldown timer
+        let autoFireInterval = null; // Machine gun auto-fire interval
+        let weaponUnlockTimeout = null;
 
         // ========== HIGH SCORE ==========
         function loadHighScore() {
@@ -527,6 +697,130 @@
             });
         }
 
+        // ========== WEAPON SOUND EFFECTS ==========
+        function playGunSound() {
+            ensureAudioCtx();
+            // Short percussive burst
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.06);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.08);
+            // Noise click
+            const bufferSize = audioCtx.sampleRate * 0.04;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+            }
+            const noise = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+            noise.start(audioCtx.currentTime);
+        }
+
+        function playRocketFireSound() {
+            ensureAudioCtx();
+            // Whoosh sound
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.4);
+            // White noise burst for thrust
+            const bufferSize = audioCtx.sampleRate * 0.3;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize) * 0.5;
+            }
+            const noise = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            noise.start(audioCtx.currentTime);
+        }
+
+        function playExplosionSound() {
+            ensureAudioCtx();
+            // Deep bass thud
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.connect(gain1);
+            gain1.connect(audioCtx.destination);
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc1.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.8);
+            gain1.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+            osc1.start(audioCtx.currentTime);
+            osc1.stop(audioCtx.currentTime + 0.8);
+            // Crackle
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.type = 'sawtooth';
+            osc2.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc2.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+            gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc2.start(audioCtx.currentTime);
+            osc2.stop(audioCtx.currentTime + 0.5);
+            // Explosion noise
+            const bufferSize = audioCtx.sampleRate * 0.6;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            }
+            const noise = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+            noise.start(audioCtx.currentTime);
+        }
+
+        function playWeaponUnlockSound() {
+            ensureAudioCtx();
+            const notes = [523, 659, 784, 1047, 1319];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.1);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.1 + 0.4);
+                osc.start(audioCtx.currentTime + i * 0.1);
+                osc.stop(audioCtx.currentTime + i * 0.1 + 0.4);
+            });
+        }
+
         // ========== PARTICLE SYSTEM ==========
         function spawnParticles(x, y, color, count, isGolden) {
             for (let i = 0; i < count; i++) {
@@ -635,6 +929,564 @@
             } else {
                 shakeOffsetX = 0;
                 shakeOffsetY = 0;
+            }
+        }
+
+        // ========== BULLET SYSTEM (MACHINE GUN) ==========
+        function fireBullet() {
+            if (isGameOver) return;
+            const currentTime = Date.now();
+            if (currentTime - lastFireTime < CONFIG.machineGunFireRate) return;
+            lastFireTime = currentTime;
+
+            // Fire from bottom-center of screen toward mouse
+            const startX = canvas.width / 2;
+            const startY = canvas.height - 10;
+            const angle = Math.atan2(mouseY - startY, mouseX - startX);
+            // Add slight spread
+            const spread = (Math.random() - 0.5) * CONFIG.machineGunSpread;
+
+            bullets.push({
+                x: startX,
+                y: startY,
+                dx: Math.cos(angle + spread) * CONFIG.machineGunBulletSpeed,
+                dy: Math.sin(angle + spread) * CONFIG.machineGunBulletSpeed,
+                life: 1.0,
+                trail: []
+            });
+
+            playGunSound();
+            // Muzzle flash particles
+            spawnParticles(startX, startY, '#FFDD44', 3, false);
+        }
+
+        function updateBullets() {
+            const currentTime = Date.now();
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                // Store trail positions
+                b.trail.push({ x: b.x, y: b.y });
+                if (b.trail.length > 5) b.trail.shift();
+
+                b.x += b.dx;
+                b.y += b.dy;
+
+                // Check if bullet is off screen
+                if (b.x < -10 || b.x > canvas.width + 10 || b.y < -10 || b.y > canvas.height + 10) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check collision with chickens
+                let hitChicken = false;
+                for (let j = 0; j < chickens.length; j++) {
+                    const chicken = chickens[j];
+                    if (!chicken.isDead &&
+                        b.x >= chicken.x && b.x <= chicken.x + CONFIG.chickenWidth &&
+                        b.y >= chicken.y && b.y <= chicken.y + CONFIG.chickenHeight
+                    ) {
+                        // Kill chicken
+                        killChickenWithWeapon(chicken, currentTime);
+                        bullets.splice(i, 1);
+                        hitChicken = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function drawBullets() {
+            bullets.forEach(b => {
+                ctx.save();
+                // Draw trail
+                if (b.trail.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(b.trail[0].x, b.trail[0].y);
+                    for (let t = 1; t < b.trail.length; t++) {
+                        ctx.lineTo(b.trail[t].x, b.trail[t].y);
+                    }
+                    ctx.lineTo(b.x, b.y);
+                    ctx.strokeStyle = 'rgba(255, 220, 60, 0.4)';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+                // Draw bullet
+                const angle = Math.atan2(b.dy, b.dx);
+                ctx.translate(b.x, b.y);
+                ctx.rotate(angle);
+                // Bullet glow
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#FFDD44';
+                // Bullet shape (elongated)
+                ctx.fillStyle = '#FFDD44';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Bullet core
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.ellipse(1, 0, 3, 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        // ========== ROCKET SYSTEM ==========
+        function fireRocket() {
+            if (isGameOver) return;
+            const currentTime = Date.now();
+            if (currentTime - lastRocketTime < CONFIG.rocketCooldown) return;
+            lastRocketTime = currentTime;
+
+            const startX = canvas.width / 2;
+            const startY = canvas.height - 10;
+            const targetX = mouseX;
+            const targetY = mouseY;
+            const angle = Math.atan2(targetY - startY, targetX - startX);
+            const dist = Math.sqrt((targetX - startX) ** 2 + (targetY - startY) ** 2);
+
+            rockets.push({
+                x: startX,
+                y: startY,
+                dx: Math.cos(angle) * CONFIG.rocketSpeed,
+                dy: Math.sin(angle) * CONFIG.rocketSpeed,
+                targetX: targetX,
+                targetY: targetY,
+                distToTarget: dist,
+                distTraveled: 0,
+                angle: angle,
+                trail: [],
+                alive: true
+            });
+
+            playRocketFireSound();
+        }
+
+        function updateRockets() {
+            const currentTime = Date.now();
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                const r = rockets[i];
+                if (!r.alive) {
+                    rockets.splice(i, 1);
+                    continue;
+                }
+
+                // Store trail
+                r.trail.push({ x: r.x, y: r.y, time: currentTime });
+                if (r.trail.length > 12) r.trail.shift();
+                // Remove old trail entries
+                r.trail = r.trail.filter(t => currentTime - t.time < 400);
+
+                r.x += r.dx;
+                r.y += r.dy;
+                r.distTraveled += CONFIG.rocketSpeed;
+
+                // Spawn smoke trail particles
+                if (Math.random() < 0.5) {
+                    particles.push({
+                        x: r.x - r.dx * 0.5,
+                        y: r.y - r.dy * 0.5,
+                        dx: (Math.random() - 0.5) * 1.5,
+                        dy: (Math.random() - 0.5) * 1.5,
+                        size: 3 + Math.random() * 3,
+                        color: Math.random() < 0.5 ? '#FF6600' : '#888888',
+                        life: 0.6,
+                        decay: 0.03 + Math.random() * 0.02,
+                        gravity: -0.05,
+                        isGolden: false
+                    });
+                }
+
+                // Check if rocket reached target or went off screen
+                if (r.distTraveled >= r.distToTarget ||
+                    r.x < -20 || r.x > canvas.width + 20 ||
+                    r.y < -20 || r.y > canvas.height + 20) {
+                    // Explode!
+                    triggerExplosion(r.x, r.y, currentTime);
+                    r.alive = false;
+                    continue;
+                }
+
+                // Check direct hit with chicken (explode early)
+                for (let j = 0; j < chickens.length; j++) {
+                    const chicken = chickens[j];
+                    if (!chicken.isDead) {
+                        const cx = chicken.x + CONFIG.chickenWidth / 2;
+                        const cy = chicken.y + CONFIG.chickenHeight / 2;
+                        const dx = r.x - cx;
+                        const dy = r.y - cy;
+                        if (Math.sqrt(dx * dx + dy * dy) < 30) {
+                            triggerExplosion(r.x, r.y, currentTime);
+                            r.alive = false;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawRockets() {
+            rockets.forEach(r => {
+                if (!r.alive) return;
+                ctx.save();
+
+                // Draw exhaust trail
+                if (r.trail.length > 1) {
+                    const now = Date.now();
+                    for (let t = 0; t < r.trail.length - 1; t++) {
+                        const age = (now - r.trail[t].time) / 400;
+                        ctx.globalAlpha = (1 - age) * 0.6;
+                        ctx.beginPath();
+                        ctx.arc(r.trail[t].x, r.trail[t].y, 3 * (1 - age) + 1, 0, Math.PI * 2);
+                        ctx.fillStyle = `hsl(${30 - age * 30}, 100%, ${60 - age * 20}%)`;
+                        ctx.fill();
+                    }
+                }
+
+                ctx.globalAlpha = 1;
+                ctx.translate(r.x, r.y);
+                ctx.rotate(r.angle);
+
+                // Rocket glow
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#FF4400';
+
+                // Rocket body
+                ctx.fillStyle = '#cc3333';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 10, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Nose cone
+                ctx.fillStyle = '#ff5555';
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.lineTo(5, -4);
+                ctx.lineTo(5, 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Fins
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.moveTo(-8, -2);
+                ctx.lineTo(-13, -7);
+                ctx.lineTo(-6, -3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-8, 2);
+                ctx.lineTo(-13, 7);
+                ctx.lineTo(-6, 3);
+                ctx.closePath();
+                ctx.fill();
+
+                // Exhaust flame
+                ctx.fillStyle = '#FFAA00';
+                ctx.beginPath();
+                ctx.moveTo(-8, -3);
+                ctx.lineTo(-15 - Math.random() * 5, 0);
+                ctx.lineTo(-8, 3);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+            });
+        }
+
+        // ========== EXPLOSION SYSTEM ==========
+        function triggerExplosion(x, y, currentTime) {
+            playExplosionSound();
+            triggerShake(15);
+
+            // Create explosion visual
+            explosions.push({
+                x: x,
+                y: y,
+                startTime: currentTime,
+                duration: 600,
+                maxRadius: CONFIG.rocketBlastRadius
+            });
+
+            // Kill all chickens in blast radius
+            let killCount = 0;
+            chickens.forEach(chicken => {
+                if (!chicken.isDead) {
+                    const cx = chicken.x + CONFIG.chickenWidth / 2;
+                    const cy = chicken.y + CONFIG.chickenHeight / 2;
+                    const dx = x - cx;
+                    const dy = y - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist <= CONFIG.rocketBlastRadius) {
+                        chicken.isDead = true;
+                        chicken.deathTime = currentTime;
+                        chicken.image = chickenDeadImage;
+                        totalChickensHit++;
+                        killCount++;
+
+                        // Update combo
+                        if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
+                            multiplier++;
+                        } else {
+                            multiplier = 1;
+                        }
+                        lastHitTime = currentTime;
+
+                        // Calculate points per chicken
+                        let points = multiplier;
+                        if (chicken.isGolden) points *= 10;
+                        if (doublePointsActive) points *= 2;
+                        score += points;
+
+                        // Visual effects per kill
+                        const kcx = chicken.x + CONFIG.chickenWidth / 2;
+                        const kcy = chicken.y + CONFIG.chickenHeight / 2;
+                        spawnParticles(kcx, kcy, '#FF4444', 4, false);
+                        spawnFloatingText(kcx, kcy - 20, '+' + points,
+                            chicken.isGolden ? '#FFD700' : '#FF6644', 22);
+
+                        if (multiplier >= 2) {
+                            chicken.multiplierText = 'x' + multiplier;
+                        }
+                        if (chicken.isGolden) {
+                            chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
+                        }
+                    }
+                }
+            });
+
+            if (killCount > 0) {
+                updateScore();
+            }
+
+            // Explosion particles
+            const explosionColors = ['#FF4400', '#FF6600', '#FF8800', '#FFAA00', '#FFCC00', '#FFFFFF'];
+            explosionColors.forEach(color => {
+                spawnParticles(x, y, color, 6, true);
+            });
+
+            // Big floating text for multi-kills
+            if (killCount >= 3) {
+                spawnFloatingText(x, y - 40, killCount + ' KILLS!', '#FF4400', 32);
+            } else if (killCount >= 2) {
+                spawnFloatingText(x, y - 40, 'DOUBLE KILL!', '#FF6600', 28);
+            }
+        }
+
+        function updateExplosions() {
+            const currentTime = Date.now();
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const e = explosions[i];
+                if (currentTime - e.startTime > e.duration) {
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+
+        function drawExplosions() {
+            const currentTime = Date.now();
+            explosions.forEach(e => {
+                const elapsed = currentTime - e.startTime;
+                const progress = elapsed / e.duration;
+                if (progress > 1) return;
+
+                const radius = e.maxRadius * Math.min(progress * 2, 1);
+                const alpha = 1 - progress;
+
+                ctx.save();
+
+                // Outer glow
+                const gradient = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, radius);
+                gradient.addColorStop(0, `rgba(255, 255, 200, ${alpha * 0.8})`);
+                gradient.addColorStop(0.3, `rgba(255, 150, 0, ${alpha * 0.6})`);
+                gradient.addColorStop(0.6, `rgba(255, 60, 0, ${alpha * 0.3})`);
+                gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Shockwave ring
+                if (progress < 0.5) {
+                    const ringProgress = progress * 2;
+                    const ringRadius = e.maxRadius * ringProgress * 1.2;
+                    ctx.strokeStyle = `rgba(255, 200, 100, ${(1 - ringProgress) * 0.5})`;
+                    ctx.lineWidth = 3 * (1 - ringProgress);
+                    ctx.beginPath();
+                    ctx.arc(e.x, e.y, ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            });
+        }
+
+        // ========== WEAPON HELPER: KILL CHICKEN ==========
+        function killChickenWithWeapon(chicken, currentTime) {
+            if (chicken.isGolden) {
+                playGoldenHitSound();
+            }
+            hitSound.currentTime = 0;
+            hitSound.play();
+
+            chicken.isDead = true;
+            chicken.deathTime = currentTime;
+            chicken.image = chickenDeadImage;
+            totalChickensHit++;
+
+            // Update combo
+            if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
+                multiplier++;
+            } else {
+                multiplier = 1;
+            }
+            lastHitTime = currentTime;
+
+            // Calculate points
+            let points = multiplier;
+            if (chicken.isGolden) points *= 10;
+            if (doublePointsActive) points *= 2;
+            score += points;
+            updateScore();
+
+            // Visual feedback
+            const cx = chicken.x + CONFIG.chickenWidth / 2;
+            const cy = chicken.y + CONFIG.chickenHeight / 2;
+
+            const featherColors = chicken.isGolden
+                ? ['#FFD700', '#FFA500', '#FFEC8B', '#FFE4B5']
+                : ['#FFFFFF', '#F5DEB3', '#DEB887', '#CD853F'];
+            featherColors.forEach(color => {
+                spawnParticles(cx, cy, color, 3, chicken.isGolden);
+            });
+
+            let scoreText = '+' + points;
+            const textColor = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
+            const textSize = chicken.isGolden ? 32 : (20 + Math.min(multiplier * 2, 16));
+            spawnFloatingText(cx, cy - 20, scoreText, textColor, textSize);
+
+            if (multiplier >= 2) {
+                chicken.multiplierText = 'x' + multiplier;
+            }
+            if (chicken.isGolden) {
+                chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
+            }
+
+            if (multiplier >= 5) {
+                triggerShake(multiplier);
+            }
+            if (multiplier >= 8) {
+                spawnParticles(cx, cy, getComboColor(multiplier), 8, true);
+            }
+        }
+
+        // ========== WEAPON SWITCHING ==========
+        function switchWeapon(weapon) {
+            if (isGameOver) return;
+            if (!unlockedWeapons.includes(weapon)) return;
+            if (currentWeapon === weapon) return;
+
+            currentWeapon = weapon;
+
+            // Stop machine gun auto-fire if switching away
+            if (weapon !== 'machinegun' && autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
+            }
+
+            // Update weapon selector UI
+            updateWeaponSelectorUI();
+        }
+
+        function updateWeaponSelectorUI() {
+            const slots = document.querySelectorAll('.weapon-slot');
+            slots.forEach(slot => {
+                const weapon = slot.dataset.weapon;
+                slot.classList.remove('active');
+                if (weapon === currentWeapon) {
+                    slot.classList.add('active');
+                }
+                if (unlockedWeapons.includes(weapon)) {
+                    slot.classList.remove('locked');
+                    const lock = slot.querySelector('.lock-overlay');
+                    if (lock) lock.style.display = 'none';
+                }
+            });
+
+            // Update rocket cooldown indicator
+            const rocketSlot = document.querySelector('.weapon-slot[data-weapon="rocket"]');
+            if (rocketSlot && unlockedWeapons.includes('rocket')) {
+                let cooldownBar = rocketSlot.querySelector('.rocket-cooldown');
+                if (!cooldownBar) {
+                    cooldownBar = document.createElement('div');
+                    cooldownBar.className = 'rocket-cooldown';
+                    rocketSlot.appendChild(cooldownBar);
+                }
+            }
+        }
+
+        function updateRocketCooldownUI() {
+            const cooldownBar = document.querySelector('.rocket-cooldown');
+            if (!cooldownBar) return;
+            const elapsed = Date.now() - lastRocketTime;
+            const remaining = Math.max(0, 1 - elapsed / CONFIG.rocketCooldown);
+            cooldownBar.style.width = (remaining * 100) + '%';
+        }
+
+        function unlockWeapon(weapon) {
+            if (unlockedWeapons.includes(weapon)) return;
+            unlockedWeapons.push(weapon);
+
+            playWeaponUnlockSound();
+
+            // Show unlock announcement
+            const container = document.getElementById('weaponUnlockAnnouncement');
+            const textEl = container.querySelector('.unlock-text');
+            const weaponEl = container.querySelector('.unlock-weapon');
+            const hintEl = container.querySelector('.unlock-hint');
+
+            const weaponInfo = {
+                machinegun: { name: 'MACHINE GUN', icon: '\uD83D\uDD2B', key: '2' },
+                rocket: { name: 'ROCKET LAUNCHER', icon: '\uD83D\uDE80', key: '3' }
+            };
+
+            const info = weaponInfo[weapon];
+            textEl.textContent = 'NEW WEAPON UNLOCKED!';
+            weaponEl.textContent = info.icon + ' ' + info.name;
+            hintEl.textContent = 'Press ' + info.key + ' to equip!';
+
+            // Force re-animation
+            container.style.display = 'none';
+            void container.offsetWidth;
+            container.style.display = 'block';
+
+            const newText = textEl.cloneNode(true);
+            const newWeapon = weaponEl.cloneNode(true);
+            const newHint = hintEl.cloneNode(true);
+            textEl.parentNode.replaceChild(newText, textEl);
+            weaponEl.parentNode.replaceChild(newWeapon, weaponEl);
+            hintEl.parentNode.replaceChild(newHint, hintEl);
+
+            if (weaponUnlockTimeout) clearTimeout(weaponUnlockTimeout);
+            weaponUnlockTimeout = setTimeout(() => {
+                container.style.display = 'none';
+            }, 3000);
+
+            updateWeaponSelectorUI();
+        }
+
+        function handleKeyDown(event) {
+            if (isGameOver) return;
+            switch (event.key) {
+                case '1':
+                    switchWeapon('hammer');
+                    break;
+                case '2':
+                    if (unlockedWeapons.includes('machinegun')) switchWeapon('machinegun');
+                    break;
+                case '3':
+                    if (unlockedWeapons.includes('rocket')) switchWeapon('rocket');
+                    break;
             }
         }
 
@@ -878,6 +1730,14 @@
             const waveFactor = currentWave - 1;
             spawnInterval = Math.max(CONFIG.baseSpawnInterval - waveFactor * 80, CONFIG.minSpawnInterval);
             chickenSpeed = Math.min(CONFIG.baseChickenSpeed + waveFactor * 0.4, CONFIG.maxChickenSpeed);
+
+            // Check weapon unlocks
+            if (currentWave >= CONFIG.machineGunUnlockWave) {
+                unlockWeapon('machinegun');
+            }
+            if (currentWave >= CONFIG.rocketUnlockWave) {
+                unlockWeapon('rocket');
+            }
         }
 
         // ========== GOLDEN CHICKEN ==========
@@ -1012,7 +1872,8 @@
             lastWaveTime = Date.now();
             currentWave = 1;
 
-            // Show wave 1 announcement
+            // Show weapon bar and wave 1 announcement
+            document.getElementById('weaponBar').style.display = 'flex';
             setTimeout(() => announceWave(1), 500);
 
             spawnChicken();
@@ -1022,6 +1883,7 @@
             canvas.addEventListener('touchstart', hammerDown);
             canvas.addEventListener('touchend', hammerUp);
             canvas.addEventListener('touchmove', updateTouchPosition);
+            document.addEventListener('keydown', handleKeyDown);
 
             lastFrameTime = Date.now();
             update();
@@ -1085,8 +1947,14 @@
             updateWaveSystem();
             updatePowerUps();
             moveChickens();
+            updateBullets();
+            updateRockets();
+            updateExplosions();
             drawPowerUps();
             drawChickens();
+            drawBullets();
+            drawRockets();
+            drawExplosions();
             drawParticles();
             updateParticles();
             drawFloatingTexts();
@@ -1094,6 +1962,7 @@
             drawFreezeOverlay();
             drawComboMeter();
             drawHammer();
+            updateRocketCooldownUI();
 
             ctx.restore();
 
@@ -1278,14 +2147,100 @@
             ctx.restore();
         }
 
-        // Draw hammer
+        // Draw weapon cursor
         function drawHammer() {
-            const hammerX = mouseX - CONFIG.hammerWidth / 2;
-            const hammerY = mouseY - CONFIG.hammerHeight / 2;
-            ctx.drawImage(hammerImage, hammerX, hammerY, CONFIG.hammerWidth, CONFIG.hammerHeight);
+            if (currentWeapon === 'hammer') {
+                const hammerX = mouseX - CONFIG.hammerWidth / 2;
+                const hammerY = mouseY - CONFIG.hammerHeight / 2;
+                ctx.drawImage(hammerImage, hammerX, hammerY, CONFIG.hammerWidth, CONFIG.hammerHeight);
+            } else if (currentWeapon === 'machinegun') {
+                // Draw crosshair
+                const size = 40;
+                if (crosshairImage.complete && crosshairImage.naturalWidth > 0) {
+                    ctx.drawImage(crosshairImage, mouseX - size / 2, mouseY - size / 2, size, size);
+                } else {
+                    // Fallback: draw crosshair with canvas
+                    ctx.save();
+                    ctx.strokeStyle = '#ff3333';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(mouseX, mouseY, 15, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(mouseX, mouseY - 20);
+                    ctx.lineTo(mouseX, mouseY - 8);
+                    ctx.moveTo(mouseX, mouseY + 8);
+                    ctx.lineTo(mouseX, mouseY + 20);
+                    ctx.moveTo(mouseX - 20, mouseY);
+                    ctx.lineTo(mouseX - 8, mouseY);
+                    ctx.moveTo(mouseX + 8, mouseY);
+                    ctx.lineTo(mouseX + 20, mouseY);
+                    ctx.stroke();
+                    ctx.fillStyle = '#ff3333';
+                    ctx.beginPath();
+                    ctx.arc(mouseX, mouseY, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                // Draw firing line indicator from bottom center to cursor
+                if (isMouseDown) {
+                    ctx.save();
+                    ctx.setLineDash([5, 8]);
+                    ctx.strokeStyle = 'rgba(255, 220, 60, 0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 2, canvas.height - 10);
+                    ctx.lineTo(mouseX, mouseY);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            } else if (currentWeapon === 'rocket') {
+                // Draw target reticle
+                const size = 50;
+                if (rocketTargetImage.complete && rocketTargetImage.naturalWidth > 0) {
+                    ctx.save();
+                    // Pulse effect
+                    const pulse = 1 + Math.sin(Date.now() / 200) * 0.05;
+                    ctx.translate(mouseX, mouseY);
+                    ctx.scale(pulse, pulse);
+                    ctx.drawImage(rocketTargetImage, -size / 2, -size / 2, size, size);
+                    ctx.restore();
+                } else {
+                    // Fallback: draw target with canvas
+                    ctx.save();
+                    const pulse = 1 + Math.sin(Date.now() / 200) * 0.05;
+                    ctx.translate(mouseX, mouseY);
+                    ctx.scale(pulse, pulse);
+                    ctx.strokeStyle = '#ff8800';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fillStyle = '#ff4400';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                // Show cooldown status
+                const elapsed = Date.now() - lastRocketTime;
+                if (elapsed < CONFIG.rocketCooldown) {
+                    const progress = elapsed / CONFIG.rocketCooldown;
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(255, 68, 0, 0.5)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(mouseX, mouseY, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
         }
 
-        // Handle hammering
+        // Handle weapon input
         function hammerDown(event) {
             ensureAudioCtx();
             if (!backgroundMusicStarted) {
@@ -1294,27 +2249,51 @@
             }
             if (isGameOver) return;
             isMouseDown = true;
-            hammerImage = hammerOnImage;
 
-            // Check power-up collision first
+            // Check power-up collision first (works for all weapons)
             const gotPowerUp = checkPowerUpCollision();
             if (gotPowerUp) {
                 event.preventDefault();
                 return;
             }
 
-            const hit = checkHit();
-            if (!hit) {
-                missSound.currentTime = 0;
-                missSound.play();
-                multiplier = 1;
+            if (currentWeapon === 'hammer') {
+                hammerImage = hammerOnImage;
+                const hit = checkHit();
+                if (!hit) {
+                    missSound.currentTime = 0;
+                    missSound.play();
+                    multiplier = 1;
+                }
+            } else if (currentWeapon === 'machinegun') {
+                // Fire immediately and start auto-fire
+                fireBullet();
+                if (autoFireInterval) clearInterval(autoFireInterval);
+                autoFireInterval = setInterval(() => {
+                    if (isMouseDown && currentWeapon === 'machinegun' && !isGameOver) {
+                        fireBullet();
+                    } else {
+                        clearInterval(autoFireInterval);
+                        autoFireInterval = null;
+                    }
+                }, CONFIG.machineGunFireRate);
+            } else if (currentWeapon === 'rocket') {
+                fireRocket();
             }
+
             event.preventDefault();
         }
 
         function hammerUp(event) {
             isMouseDown = false;
-            hammerImage = hammerOffImage;
+            if (currentWeapon === 'hammer') {
+                hammerImage = hammerOffImage;
+            }
+            // Stop machine gun auto-fire
+            if (autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
+            }
             event.preventDefault();
         }
 
@@ -1443,6 +2422,12 @@
                 document.getElementById('newHighScore').style.display = 'none';
             }
 
+            // Stop auto-fire
+            if (autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
+            }
+
             // Remove event listeners
             canvas.removeEventListener('mousedown', hammerDown);
             canvas.removeEventListener('mouseup', hammerUp);
@@ -1450,7 +2435,9 @@
             canvas.removeEventListener('touchstart', hammerDown);
             canvas.removeEventListener('touchend', hammerUp);
             canvas.removeEventListener('touchmove', updateTouchPosition);
+            document.removeEventListener('keydown', handleKeyDown);
 
+            document.getElementById('weaponBar').style.display = 'none';
             backgroundMusic.pause();
             canvas.style.cursor = 'default';
         }
@@ -1476,7 +2463,34 @@
             shakeOffsetX = 0;
             shakeOffsetY = 0;
 
+            // Reset weapon state
+            currentWeapon = 'hammer';
+            unlockedWeapons = ['hammer'];
+            bullets = [];
+            rockets = [];
+            explosions = [];
+            lastFireTime = 0;
+            lastRocketTime = 0;
+            if (autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
+            }
+            hammerImage = hammerOffImage;
+
             document.getElementById('gameOverOverlay').classList.remove('show');
+
+            // Reset weapon selector UI
+            document.querySelectorAll('.weapon-slot').forEach(slot => {
+                const weapon = slot.dataset.weapon;
+                slot.classList.remove('active');
+                if (weapon === 'hammer') {
+                    slot.classList.add('active');
+                } else {
+                    slot.classList.add('locked');
+                    const lock = slot.querySelector('.lock-overlay');
+                    if (lock) lock.style.display = '';
+                }
+            });
             document.getElementById('powerUpStatus').innerHTML = '';
             updateScore();
             loadHighScore();
@@ -1494,7 +2508,9 @@
             canvas.addEventListener('touchstart', hammerDown);
             canvas.addEventListener('touchend', hammerUp);
             canvas.addEventListener('touchmove', updateTouchPosition);
+            document.addEventListener('keydown', handleKeyDown);
 
+            document.getElementById('weaponBar').style.display = 'flex';
             setTimeout(() => announceWave(1), 500);
             spawnChicken();
             lastFrameTime = Date.now();

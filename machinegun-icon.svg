@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="40" viewBox="0 0 60 40">
+  <!-- Gun body -->
+  <rect x="8" y="12" width="32" height="10" rx="2" fill="#555555"/>
+  <!-- Barrel -->
+  <rect x="38" y="14" width="18" height="6" rx="1" fill="#444444"/>
+  <!-- Barrel tip -->
+  <rect x="54" y="13" width="4" height="8" rx="1" fill="#333333"/>
+  <!-- Stock -->
+  <polygon points="10,12 2,22 2,24 10,22" fill="#8B5A2B"/>
+  <polygon points="2,22 0,26 2,28 2,24" fill="#704820"/>
+  <!-- Grip -->
+  <rect x="22" y="20" width="6" height="12" rx="2" fill="#666666"/>
+  <!-- Trigger guard -->
+  <path d="M22,24 Q18,30 22,32" fill="none" stroke="#777" stroke-width="1.5"/>
+  <!-- Magazine -->
+  <rect x="28" y="22" width="8" height="14" rx="1" fill="#3a3a3a"/>
+  <line x1="28" y1="26" x2="36" y2="26" stroke="#555" stroke-width="0.5"/>
+  <line x1="28" y1="30" x2="36" y2="30" stroke="#555" stroke-width="0.5"/>
+  <!-- Sight -->
+  <rect x="16" y="9" width="2" height="4" fill="#444"/>
+  <rect x="38" y="10" width="2" height="4" fill="#444"/>
+  <!-- Bolt -->
+  <rect x="30" y="12" width="4" height="3" rx="1" fill="#666"/>
+</svg>
