@@ -493,7 +493,7 @@
             machineGunFireRate: 140,        // ms between shots
             machineGunBulletSpeed: 14,      // pixels per frame
             machineGunSpread: 0.08,         // bullet spread angle (radians)
-            rocketCooldown: 1800,           // ms between rockets
+            rocketCooldown: 800,            // ms between rockets
             rocketSpeed: 7,                 // pixels per frame
             rocketBlastRadius: 90,          // explosion radius in pixels
             machineGunUnlockWave: 3,
@@ -945,6 +945,8 @@
             const angle = Math.atan2(mouseY - startY, mouseX - startX);
             // Add slight spread
             const spread = (Math.random() - 0.5) * CONFIG.machineGunSpread;
+            // Bullet travels only as far as the aim point (plus a small buffer)
+            const distToAim = Math.sqrt((mouseX - startX) ** 2 + (mouseY - startY) ** 2);
 
             bullets.push({
                 x: startX,
@@ -952,7 +954,9 @@
                 dx: Math.cos(angle + spread) * CONFIG.machineGunBulletSpeed,
                 dy: Math.sin(angle + spread) * CONFIG.machineGunBulletSpeed,
                 life: 1.0,
-                trail: []
+                trail: [],
+                distToTarget: distToAim + 20,
+                distTraveled: 0
             });
 
             playGunSound();
@@ -970,9 +974,11 @@
 
                 b.x += b.dx;
                 b.y += b.dy;
+                b.distTraveled += CONFIG.machineGunBulletSpeed;
 
-                // Check if bullet is off screen
-                if (b.x < -10 || b.x > canvas.width + 10 || b.y < -10 || b.y > canvas.height + 10) {
+                // Remove bullet once it has reached the aim point or gone off screen
+                if (b.distTraveled >= b.distToTarget ||
+                    b.x < -10 || b.x > canvas.width + 10 || b.y < -10 || b.y > canvas.height + 10) {
                     bullets.splice(i, 1);
                     continue;
                 }
