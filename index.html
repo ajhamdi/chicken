@@ -493,7 +493,7 @@
             machineGunFireRate: 140,        // ms between shots
             machineGunBulletSpeed: 14,      // pixels per frame
             machineGunSpread: 0.08,         // bullet spread angle (radians)
-            rocketCooldown: 1800,           // ms between rockets
+            rocketCooldown: 900,            // ms between rockets
             rocketSpeed: 7,                 // pixels per frame
             rocketBlastRadius: 90,          // explosion radius in pixels
             machineGunUnlockWave: 3,
@@ -932,101 +932,94 @@
             }
         }
 
-        // ========== BULLET SYSTEM (MACHINE GUN) ==========
+        // ========== MACHINE GUN SYSTEM (INSTANT HIT AT CURSOR) ==========
+        const MACHINEGUN_HIT_RADIUS = 35; // radius around cursor to check for hits
+
         function fireBullet() {
             if (isGameOver) return;
             const currentTime = Date.now();
             if (currentTime - lastFireTime < CONFIG.machineGunFireRate) return;
             lastFireTime = currentTime;
 
-            // Fire from bottom-center of screen toward mouse
-            const startX = canvas.width / 2;
-            const startY = canvas.height - 10;
-            const angle = Math.atan2(mouseY - startY, mouseX - startX);
-            // Add slight spread
-            const spread = (Math.random() - 0.5) * CONFIG.machineGunSpread;
+            // Add spread offset to aim point
+            const spreadX = (Math.random() - 0.5) * MACHINEGUN_HIT_RADIUS * 1.2;
+            const spreadY = (Math.random() - 0.5) * MACHINEGUN_HIT_RADIUS * 1.2;
+            const aimX = mouseX + spreadX;
+            const aimY = mouseY + spreadY;
 
+            // Spawn a visual bullet impact at aim point
             bullets.push({
-                x: startX,
-                y: startY,
-                dx: Math.cos(angle + spread) * CONFIG.machineGunBulletSpeed,
-                dy: Math.sin(angle + spread) * CONFIG.machineGunBulletSpeed,
-                life: 1.0,
-                trail: []
+                x: aimX,
+                y: aimY,
+                spawnTime: currentTime,
+                duration: 200,
+                hit: false
             });
 
             playGunSound();
-            // Muzzle flash particles
-            spawnParticles(startX, startY, '#FFDD44', 3, false);
+
+            // Check for chicken hit at the aim point
+            let hitAny = false;
+            for (let j = 0; j < chickens.length; j++) {
+                const chicken = chickens[j];
+                if (!chicken.isDead) {
+                    const cx = chicken.x + CONFIG.chickenWidth / 2;
+                    const cy = chicken.y + CONFIG.chickenHeight / 2;
+                    const dx = aimX - cx;
+                    const dy = aimY - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < MACHINEGUN_HIT_RADIUS + 10) {
+                        killChickenWithWeapon(chicken, currentTime);
+                        bullets[bullets.length - 1].hit = true;
+                        hitAny = true;
+                        break; // Only kill one chicken per shot
+                    }
+                }
+            }
+
+            // Miss: reset combo (but don't play miss sound - too annoying with auto-fire)
+            if (!hitAny) {
+                // Muzzle spark at impact point
+                spawnParticles(aimX, aimY, '#FFDD44', 2, false);
+            }
         }
 
         function updateBullets() {
             const currentTime = Date.now();
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const b = bullets[i];
-                // Store trail positions
-                b.trail.push({ x: b.x, y: b.y });
-                if (b.trail.length > 5) b.trail.shift();
-
-                b.x += b.dx;
-                b.y += b.dy;
-
-                // Check if bullet is off screen
-                if (b.x < -10 || b.x > canvas.width + 10 || b.y < -10 || b.y > canvas.height + 10) {
+                if (currentTime - b.spawnTime > b.duration) {
                     bullets.splice(i, 1);
-                    continue;
-                }
-
-                // Check collision with chickens
-                let hitChicken = false;
-                for (let j = 0; j < chickens.length; j++) {
-                    const chicken = chickens[j];
-                    if (!chicken.isDead &&
-                        b.x >= chicken.x && b.x <= chicken.x + CONFIG.chickenWidth &&
-                        b.y >= chicken.y && b.y <= chicken.y + CONFIG.chickenHeight
-                    ) {
-                        // Kill chicken
-                        killChickenWithWeapon(chicken, currentTime);
-                        bullets.splice(i, 1);
-                        hitChicken = true;
-                        break;
-                    }
                 }
             }
         }
 
         function drawBullets() {
+            const currentTime = Date.now();
             bullets.forEach(b => {
+                const elapsed = currentTime - b.spawnTime;
+                const progress = elapsed / b.duration;
+                if (progress > 1) return;
+
                 ctx.save();
-                // Draw trail
-                if (b.trail.length > 1) {
-                    ctx.beginPath();
-                    ctx.moveTo(b.trail[0].x, b.trail[0].y);
-                    for (let t = 1; t < b.trail.length; t++) {
-                        ctx.lineTo(b.trail[t].x, b.trail[t].y);
-                    }
-                    ctx.lineTo(b.x, b.y);
-                    ctx.strokeStyle = 'rgba(255, 220, 60, 0.4)';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                }
-                // Draw bullet
-                const angle = Math.atan2(b.dy, b.dx);
-                ctx.translate(b.x, b.y);
-                ctx.rotate(angle);
-                // Bullet glow
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#FFDD44';
-                // Bullet shape (elongated)
-                ctx.fillStyle = '#FFDD44';
+                ctx.globalAlpha = 1 - progress;
+
+                // Impact flash
+                const flashSize = b.hit ? 12 : 6;
+                const size = flashSize * (1 - progress * 0.5);
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = b.hit ? '#FF8844' : '#FFDD44';
+                ctx.fillStyle = b.hit ? '#FFAA44' : '#FFDD44';
                 ctx.beginPath();
-                ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
+                ctx.arc(b.x, b.y, size, 0, Math.PI * 2);
                 ctx.fill();
-                // Bullet core
+
+                // Inner white core
                 ctx.fillStyle = '#FFFFFF';
                 ctx.beginPath();
-                ctx.ellipse(1, 0, 3, 1.5, 0, 0, Math.PI * 2);
+                ctx.arc(b.x, b.y, size * 0.4, 0, Math.PI * 2);
                 ctx.fill();
+
                 ctx.restore();
             });
         }
@@ -2182,15 +2175,15 @@
                     ctx.fill();
                     ctx.restore();
                 }
-                // Draw firing line indicator from bottom center to cursor
+                // Show hit radius indicator when firing
                 if (isMouseDown) {
                     ctx.save();
-                    ctx.setLineDash([5, 8]);
-                    ctx.strokeStyle = 'rgba(255, 220, 60, 0.2)';
+                    ctx.globalAlpha = 0.15;
+                    ctx.strokeStyle = '#ff3333';
                     ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
                     ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2, canvas.height - 10);
-                    ctx.lineTo(mouseX, mouseY);
+                    ctx.arc(mouseX, mouseY, MACHINEGUN_HIT_RADIUS, 0, Math.PI * 2);
                     ctx.stroke();
                     ctx.restore();
                 }
