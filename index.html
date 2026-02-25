@@ -495,7 +495,7 @@
             machineGunSpread: 0.08,         // bullet spread angle (radians)
             rocketCooldown: 800,            // ms between rockets
             rocketSpeed: 7,                 // pixels per frame
-            rocketBlastRadius: 90,          // explosion radius in pixels
+            rocketBlastRadius: 140,         // explosion radius in pixels
             machineGunUnlockWave: 3,
             rocketUnlockWave: 5,
         };
@@ -525,6 +525,12 @@
         backgroundMusic.loop = true;
         backgroundMusic.volume = 0.2;
         let backgroundMusicStarted = false;
+
+        // Action music (plays after wave 5 to signal a shift in game style)
+        const actionMusic = new Audio('action-music.mp3');
+        actionMusic.loop = true;
+        actionMusic.volume = 0.2;
+        let actionMusicTriggered = false;
 
         // ========== GAME STATE ==========
         let score = 0;
@@ -578,6 +584,7 @@
         let lastRocketTime = 0;     // Rocket cooldown timer
         let autoFireInterval = null; // Machine gun auto-fire interval
         let weaponUnlockTimeout = null;
+        let bulletsMissedConsecutive = 0; // Track consecutive bullet misses for combo cut
 
         // ========== HIGH SCORE ==========
         function loadHighScore() {
@@ -976,14 +983,7 @@
                 b.y += b.dy;
                 b.distTraveled += CONFIG.machineGunBulletSpeed;
 
-                // Remove bullet once it has reached the aim point or gone off screen
-                if (b.distTraveled >= b.distToTarget ||
-                    b.x < -10 || b.x > canvas.width + 10 || b.y < -10 || b.y > canvas.height + 10) {
-                    bullets.splice(i, 1);
-                    continue;
-                }
-
-                // Check collision with chickens
+                // Check collision with chickens first
                 let hitChicken = false;
                 for (let j = 0; j < chickens.length; j++) {
                     const chicken = chickens[j];
@@ -991,12 +991,27 @@
                         b.x >= chicken.x && b.x <= chicken.x + CONFIG.chickenWidth &&
                         b.y >= chicken.y && b.y <= chicken.y + CONFIG.chickenHeight
                     ) {
-                        // Kill chicken
+                        // Kill chicken — reset miss counter
+                        bulletsMissedConsecutive = 0;
                         killChickenWithWeapon(chicken, currentTime);
                         bullets.splice(i, 1);
                         hitChicken = true;
                         break;
                     }
+                }
+                if (hitChicken) continue;
+
+                // Remove bullet once it has reached the aim point or gone off screen
+                if (b.distTraveled >= b.distToTarget ||
+                    b.x < -10 || b.x > canvas.width + 10 || b.y < -10 || b.y > canvas.height + 10) {
+                    // Bullet expired without a kill — track missed bullets
+                    bulletsMissedConsecutive++;
+                    if (bulletsMissedConsecutive >= 4) {
+                        multiplier = 1;
+                        bulletsMissedConsecutive = 0;
+                    }
+                    bullets.splice(i, 1);
+                    continue;
                 }
             }
         }
@@ -1263,6 +1278,9 @@
 
             if (killCount > 0) {
                 updateScore();
+            } else {
+                // No chickens killed by explosion — cut combo like a hammer miss
+                multiplier = 1;
             }
 
             // Explosion particles
@@ -1697,6 +1715,21 @@
                 applyWaveDifficulty();
             }
             document.getElementById('waveDisplay').innerText = 'Wave ' + currentWave;
+
+            // After wave 5, switch to action music to signal a shift in game style
+            if (currentWave > 5 && backgroundMusicStarted && !actionMusicTriggered) {
+                actionMusicTriggered = true;
+                backgroundMusic.pause();
+                // Try to play action-music.mp3; fall back to speeding up existing track
+                const playPromise = actionMusic.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        // action-music.mp3 not found — increase BPM of background music
+                        backgroundMusic.playbackRate = 1.35;
+                        backgroundMusic.play();
+                    });
+                }
+            }
         }
 
         function announceWave(wave) {
@@ -2445,6 +2478,7 @@
 
             document.getElementById('weaponBar').style.display = 'none';
             backgroundMusic.pause();
+            actionMusic.pause();
             canvas.style.cursor = 'default';
         }
 
@@ -2477,6 +2511,7 @@
             explosions = [];
             lastFireTime = 0;
             lastRocketTime = 0;
+            bulletsMissedConsecutive = 0;
             if (autoFireInterval) {
                 clearInterval(autoFireInterval);
                 autoFireInterval = null;
@@ -2506,7 +2541,11 @@
             lastWaveTime = Date.now();
 
             backgroundMusic.currentTime = 0;
+            backgroundMusic.playbackRate = 1.0;
             backgroundMusicStarted = false;
+            actionMusic.pause();
+            actionMusic.currentTime = 0;
+            actionMusicTriggered = false;
 
             canvas.addEventListener('mousedown', hammerDown);
             canvas.addEventListener('mouseup', hammerUp);
