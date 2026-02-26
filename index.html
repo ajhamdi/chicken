@@ -496,6 +496,7 @@
             rocketCooldown: 800,            // ms between rockets
             rocketSpeed: 7,                 // pixels per frame
             rocketBlastRadius: 140,         // explosion radius in pixels
+            machineGunImpactRange: 50,     // bullets only hit chickens within this distance of aim point
             machineGunUnlockWave: 3,
             rocketUnlockWave: 5,
         };
@@ -526,11 +527,17 @@
         backgroundMusic.volume = 0.2;
         let backgroundMusicStarted = false;
 
-        // Action music (plays after wave 5 to signal a shift in game style)
-        const actionMusic = new Audio('action-music.mp3');
-        actionMusic.loop = true;
-        actionMusic.volume = 0.2;
-        let actionMusicTriggered = false;
+        // Medium action music (plays after wave 3 with machine gun intro)
+        const actionMusicMedium = new Audio('action-music-medium.mp3');
+        actionMusicMedium.loop = true;
+        actionMusicMedium.volume = 0.2;
+        let mediumMusicTriggered = false;
+
+        // Intense action music (plays after wave 5 with rocket launcher intro)
+        const actionMusicIntense = new Audio('action-music-intense.mp3');
+        actionMusicIntense.loop = true;
+        actionMusicIntense.volume = 0.2;
+        let intenseMusicTriggered = false;
 
         // ========== GAME STATE ==========
         let score = 0;
@@ -983,20 +990,24 @@
                 b.y += b.dy;
                 b.distTraveled += CONFIG.machineGunBulletSpeed;
 
-                // Check collision with chickens first
+                // Check collision with chickens only near the impact point
+                // (bullets pass through chickens along the trajectory)
                 let hitChicken = false;
-                for (let j = 0; j < chickens.length; j++) {
-                    const chicken = chickens[j];
-                    if (!chicken.isDead &&
-                        b.x >= chicken.x && b.x <= chicken.x + CONFIG.chickenWidth &&
-                        b.y >= chicken.y && b.y <= chicken.y + CONFIG.chickenHeight
-                    ) {
-                        // Kill chicken — reset miss counter
-                        bulletsMissedConsecutive = 0;
-                        killChickenWithWeapon(chicken, currentTime);
-                        bullets.splice(i, 1);
-                        hitChicken = true;
-                        break;
+                const nearImpact = b.distTraveled >= b.distToTarget - CONFIG.machineGunImpactRange;
+                if (nearImpact) {
+                    for (let j = 0; j < chickens.length; j++) {
+                        const chicken = chickens[j];
+                        if (!chicken.isDead &&
+                            b.x >= chicken.x && b.x <= chicken.x + CONFIG.chickenWidth &&
+                            b.y >= chicken.y && b.y <= chicken.y + CONFIG.chickenHeight
+                        ) {
+                            // Kill chicken — reset miss counter
+                            bulletsMissedConsecutive = 0;
+                            killChickenWithWeapon(chicken, currentTime);
+                            bullets.splice(i, 1);
+                            hitChicken = true;
+                            break;
+                        }
                     }
                 }
                 if (hitChicken) continue;
@@ -1119,29 +1130,14 @@
                 }
 
                 // Check if rocket reached target or went off screen
+                // Rockets always fly to the target — no early detonation on path chickens
                 if (r.distTraveled >= r.distToTarget ||
                     r.x < -20 || r.x > canvas.width + 20 ||
                     r.y < -20 || r.y > canvas.height + 20) {
-                    // Explode!
+                    // Explode at target!
                     triggerExplosion(r.x, r.y, currentTime);
                     r.alive = false;
                     continue;
-                }
-
-                // Check direct hit with chicken (explode early)
-                for (let j = 0; j < chickens.length; j++) {
-                    const chicken = chickens[j];
-                    if (!chicken.isDead) {
-                        const cx = chicken.x + CONFIG.chickenWidth / 2;
-                        const cy = chicken.y + CONFIG.chickenHeight / 2;
-                        const dx = r.x - cx;
-                        const dy = r.y - cy;
-                        if (Math.sqrt(dx * dx + dy * dy) < 30) {
-                            triggerExplosion(r.x, r.y, currentTime);
-                            r.alive = false;
-                            break;
-                        }
-                    }
                 }
             }
         }
@@ -1716,15 +1712,27 @@
             }
             document.getElementById('waveDisplay').innerText = 'Wave ' + currentWave;
 
-            // After wave 5, switch to action music to signal a shift in game style
-            if (currentWave > 5 && backgroundMusicStarted && !actionMusicTriggered) {
-                actionMusicTriggered = true;
+            // After wave 3, switch to medium action music (machine gun intro)
+            if (currentWave > 3 && backgroundMusicStarted && !mediumMusicTriggered) {
+                mediumMusicTriggered = true;
                 backgroundMusic.pause();
-                // Try to play action-music.mp3; fall back to speeding up existing track
-                const playPromise = actionMusic.play();
+                const playPromise = actionMusicMedium.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(() => {
-                        // action-music.mp3 not found — increase BPM of background music
+                        backgroundMusic.playbackRate = 1.15;
+                        backgroundMusic.play();
+                    });
+                }
+            }
+
+            // After wave 5, switch to intense action music (rocket launcher intro)
+            if (currentWave > 5 && backgroundMusicStarted && !intenseMusicTriggered) {
+                intenseMusicTriggered = true;
+                actionMusicMedium.pause();
+                backgroundMusic.pause();
+                const playPromise = actionMusicIntense.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
                         backgroundMusic.playbackRate = 1.35;
                         backgroundMusic.play();
                     });
@@ -2478,7 +2486,8 @@
 
             document.getElementById('weaponBar').style.display = 'none';
             backgroundMusic.pause();
-            actionMusic.pause();
+            actionMusicMedium.pause();
+            actionMusicIntense.pause();
             canvas.style.cursor = 'default';
         }
 
@@ -2543,9 +2552,12 @@
             backgroundMusic.currentTime = 0;
             backgroundMusic.playbackRate = 1.0;
             backgroundMusicStarted = false;
-            actionMusic.pause();
-            actionMusic.currentTime = 0;
-            actionMusicTriggered = false;
+            actionMusicMedium.pause();
+            actionMusicMedium.currentTime = 0;
+            mediumMusicTriggered = false;
+            actionMusicIntense.pause();
+            actionMusicIntense.currentTime = 0;
+            intenseMusicTriggered = false;
 
             canvas.addEventListener('mousedown', hammerDown);
             canvas.addEventListener('mouseup', hammerUp);
