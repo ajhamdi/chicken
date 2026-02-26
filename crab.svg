@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Crab body -->
+  <ellipse cx="32" cy="38" rx="18" ry="12" fill="#E74C3C"/>
+  <ellipse cx="32" cy="36" rx="16" ry="10" fill="#FF6B6B"/>
+  <!-- Shell pattern -->
+  <ellipse cx="32" cy="35" rx="10" ry="6" fill="#C0392B" opacity="0.4"/>
+  <!-- Eyes -->
+  <line x1="22" y1="28" x2="18" y2="20" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="42" y1="28" x2="46" y2="20" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="18" cy="18" r="4" fill="#FFFFFF"/>
+  <circle cx="46" cy="18" r="4" fill="#FFFFFF"/>
+  <circle cx="19" cy="17" r="2" fill="#1a1a1a"/>
+  <circle cx="47" cy="17" r="2" fill="#1a1a1a"/>
+  <!-- Claws (left) -->
+  <path d="M14,34 Q6,28 4,32 Q2,36 8,38 Q4,40 6,44 Q8,48 14,42" fill="#E74C3C" stroke="#C0392B" stroke-width="1"/>
+  <path d="M14,34 Q8,30 7,33 Q5,36 10,38" fill="#FF6B6B"/>
+  <!-- Claws (right) -->
+  <path d="M50,34 Q58,28 60,32 Q62,36 56,38 Q60,40 58,44 Q56,48 50,42" fill="#E74C3C" stroke="#C0392B" stroke-width="1"/>
+  <path d="M50,34 Q56,30 57,33 Q59,36 54,38" fill="#FF6B6B"/>
+  <!-- Legs (left side) -->
+  <line x1="18" y1="42" x2="10" y2="50" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="20" y1="44" x2="12" y2="54" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="22" y1="46" x2="16" y2="56" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Legs (right side) -->
+  <line x1="46" y1="42" x2="54" y2="50" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="44" y1="44" x2="52" y2="54" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="42" y1="46" x2="48" y2="56" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Mouth -->
+  <path d="M28,42 Q32,45 36,42" stroke="#C0392B" stroke-width="1.5" fill="none"/>
+</svg>

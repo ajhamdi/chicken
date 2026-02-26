@@ -426,13 +426,13 @@
             <span class="weapon-key">2</span>
             <span class="weapon-icon">&#128299;</span>
             <span class="weapon-name">Machine Gun</span>
-            <span class="lock-overlay">&#128274; W3</span>
+            <span class="lock-overlay">&#128274; W4</span>
         </div>
         <div class="weapon-slot locked" data-weapon="rocket" onclick="switchWeapon('rocket')">
             <span class="weapon-key">3</span>
             <span class="weapon-icon">&#128640;</span>
             <span class="weapon-name">Rocket</span>
-            <span class="lock-overlay">&#128274; W5</span>
+            <span class="lock-overlay">&#128274; W6</span>
         </div>
     </div>
 
@@ -497,8 +497,8 @@
             rocketSpeed: 7,                 // pixels per frame
             rocketBlastRadius: 140,         // explosion radius in pixels
             machineGunImpactRange: 50,     // bullets only hit chickens within this distance of aim point
-            machineGunUnlockWave: 3,
-            rocketUnlockWave: 5,
+            machineGunUnlockWave: 4,
+            rocketUnlockWave: 6,
         };
 
         // ========== ASSET LOADING ==========
@@ -506,6 +506,19 @@
         chickenImage.src = 'chicken.png';
         const chickenDeadImage = new Image();
         chickenDeadImage.src = 'chicken-dead.png';
+
+        // Crab assets (wave 4+)
+        const crabImage = new Image();
+        crabImage.src = 'crab.svg';
+        const crabDeadImage = new Image();
+        crabDeadImage.src = 'crab_hit.svg';
+
+        // Hornet assets (wave 6+)
+        const hornetImage = new Image();
+        hornetImage.src = 'hornet.svg';
+        const hornetDeadImage = new Image();
+        hornetDeadImage.src = 'hornet_hit.svg';
+
         const hammerOffImage = new Image();
         hammerOffImage.src = 'hammer-off.png';
         const hammerOnImage = new Image();
@@ -527,13 +540,13 @@
         backgroundMusic.volume = 0.2;
         let backgroundMusicStarted = false;
 
-        // Medium action music (plays after wave 3 with machine gun intro)
+        // Medium action music (plays at wave 4 with crab + machine gun intro)
         const actionMusicMedium = new Audio('action-music-medium.mp3');
         actionMusicMedium.loop = true;
         actionMusicMedium.volume = 0.2;
         let mediumMusicTriggered = false;
 
-        // Intense action music (plays after wave 5 with rocket launcher intro)
+        // Intense action music (plays at wave 6 with hornet + rocket launcher intro)
         const actionMusicIntense = new Audio('action-music-intense.mp3');
         actionMusicIntense.loop = true;
         actionMusicIntense.volume = 0.2;
@@ -1001,9 +1014,9 @@
                             b.x >= chicken.x && b.x <= chicken.x + CONFIG.chickenWidth &&
                             b.y >= chicken.y && b.y <= chicken.y + CONFIG.chickenHeight
                         ) {
-                            // Kill chicken — reset miss counter
+                            // Hit chicken — reset miss counter
                             bulletsMissedConsecutive = 0;
-                            killChickenWithWeapon(chicken, currentTime);
+                            hitChickenWithBullet(chicken, currentTime);
                             bullets.splice(i, 1);
                             hitChicken = true;
                             break;
@@ -1225,8 +1238,8 @@
                 maxRadius: CONFIG.rocketBlastRadius
             });
 
-            // Kill all chickens in blast radius
-            let killCount = 0;
+            // Kill all chickens in blast radius — first collect, then score
+            const killedChickens = [];
             chickens.forEach(chicken => {
                 if (!chicken.isDead) {
                     const cx = chicken.x + CONFIG.chickenWidth / 2;
@@ -1237,46 +1250,52 @@
                     if (dist <= CONFIG.rocketBlastRadius) {
                         chicken.isDead = true;
                         chicken.deathTime = currentTime;
-                        chicken.image = chickenDeadImage;
+                        chicken.image = chicken.deadImage || chickenDeadImage;
                         totalChickensHit++;
-                        killCount++;
-
-                        // Update combo
-                        if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
-                            multiplier++;
-                        } else {
-                            multiplier = 1;
-                        }
-                        lastHitTime = currentTime;
-
-                        // Calculate points per chicken
-                        let points = multiplier;
-                        if (chicken.isGolden) points *= 10;
-                        if (doublePointsActive) points *= 2;
-                        score += points;
-
-                        // Visual effects per kill
-                        const kcx = chicken.x + CONFIG.chickenWidth / 2;
-                        const kcy = chicken.y + CONFIG.chickenHeight / 2;
-                        spawnParticles(kcx, kcy, '#FF4444', 4, false);
-                        spawnFloatingText(kcx, kcy - 20, '+' + points,
-                            chicken.isGolden ? '#FFD700' : '#FF6644', 22);
-
-                        if (multiplier >= 2) {
-                            chicken.multiplierText = 'x' + multiplier;
-                        }
-                        if (chicken.isGolden) {
-                            chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
-                        }
+                        killedChickens.push(chicken);
                     }
+                }
+            });
+
+            const killCount = killedChickens.length;
+
+            // Rocket launcher streak: must kill 2+ in one shot to maintain combo
+            if (killCount >= 2) {
+                // Multi-kill — maintain/increment combo
+                if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
+                    multiplier += killCount;
+                } else {
+                    multiplier = killCount;
+                }
+                lastHitTime = currentTime;
+            } else {
+                // 0 or 1 kill — reset combo
+                multiplier = 1;
+            }
+
+            // Award points and visual effects for each killed chicken
+            killedChickens.forEach(chicken => {
+                let points = multiplier;
+                if (chicken.isGolden) points *= 10;
+                if (doublePointsActive) points *= 2;
+                score += points;
+
+                const kcx = chicken.x + CONFIG.chickenWidth / 2;
+                const kcy = chicken.y + CONFIG.chickenHeight / 2;
+                spawnParticles(kcx, kcy, '#FF4444', 4, false);
+                spawnFloatingText(kcx, kcy - 20, '+' + points,
+                    chicken.isGolden ? '#FFD700' : '#FF6644', 22);
+
+                if (multiplier >= 2) {
+                    chicken.multiplierText = 'x' + multiplier;
+                }
+                if (chicken.isGolden) {
+                    chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
                 }
             });
 
             if (killCount > 0) {
                 updateScore();
-            } else {
-                // No chickens killed by explosion — cut combo like a hammer miss
-                multiplier = 1;
             }
 
             // Explosion particles
@@ -1342,6 +1361,25 @@
         }
 
         // ========== WEAPON HELPER: KILL CHICKEN ==========
+        // Machine gun bullets deal 1 damage — hornets need 2 hits
+        function hitChickenWithBullet(chicken, currentTime) {
+            chicken.hp = (chicken.hp || 1) - 1;
+            if (chicken.hp > 0) {
+                // Not dead yet — show damage feedback
+                hitSound.currentTime = 0;
+                hitSound.play();
+                const cx = chicken.x + CONFIG.chickenWidth / 2;
+                const cy = chicken.y + CONFIG.chickenHeight / 2;
+                spawnParticles(cx, cy, '#FFAA00', 3, false);
+                spawnFloatingText(cx, cy - 20, 'HIT!', '#FFAA00', 16);
+                // Brief flash effect
+                chicken.damageFlash = currentTime;
+                return;
+            }
+            // HP depleted — kill it
+            killChickenWithWeapon(chicken, currentTime);
+        }
+
         function killChickenWithWeapon(chicken, currentTime) {
             if (chicken.isGolden) {
                 playGoldenHitSound();
@@ -1351,7 +1389,7 @@
 
             chicken.isDead = true;
             chicken.deathTime = currentTime;
-            chicken.image = chickenDeadImage;
+            chicken.image = chicken.deadImage || chickenDeadImage;
             totalChickensHit++;
 
             // Update combo
@@ -1678,7 +1716,7 @@
                         if (!chicken.isDead) {
                             chicken.isDead = true;
                             chicken.deathTime = currentTime;
-                            chicken.image = chickenDeadImage;
+                            chicken.image = chicken.deadImage || chickenDeadImage;
                             bombKills++;
                             totalChickensHit++;
                             // Particles for each kill
@@ -1712,7 +1750,7 @@
             }
             document.getElementById('waveDisplay').innerText = 'Wave ' + currentWave;
 
-            // After wave 3, switch to medium action music (machine gun intro)
+            // At wave 4, switch to medium action music (crab + machine gun intro)
             if (currentWave > 3 && backgroundMusicStarted && !mediumMusicTriggered) {
                 mediumMusicTriggered = true;
                 backgroundMusic.pause();
@@ -1725,7 +1763,7 @@
                 }
             }
 
-            // After wave 5, switch to intense action music (rocket launcher intro)
+            // At wave 6, switch to intense action music (hornet + rocket launcher intro)
             if (currentWave > 5 && backgroundMusicStarted && !intenseMusicTriggered) {
                 intenseMusicTriggered = true;
                 actionMusicMedium.pause();
@@ -1748,8 +1786,8 @@
 
             const waveNames = [
                 '', 'The Flock Arrives', 'Clucking Chaos', 'Feather Storm',
-                'Pecking Frenzy', 'Chicken Apocalypse', 'Egg-streme Danger',
-                'The Rooster Rises', 'Fowl Play', 'Hen-demonium', 'Final Cluck'
+                'Crab Invasion', 'Pincer Panic', 'Hornet Swarm',
+                'Sting Operation', 'Fowl Play', 'Hen-demonium', 'Final Cluck'
             ];
 
             textEl.textContent = 'WAVE ' + wave;
@@ -1938,7 +1976,33 @@
 
         let lastFrameTime = 0;
 
-        // Spawn chickens at random positions
+        // Determine enemy type based on current wave
+        function getEnemyType() {
+            if (currentWave >= 6) {
+                // Wave 6+: mix of all three types
+                const roll = Math.random();
+                if (roll < 0.4) return 'chicken';
+                if (roll < 0.7) return 'crab';
+                return 'hornet';
+            } else if (currentWave >= 4) {
+                // Wave 4-5: mix of chickens and crabs
+                return Math.random() < 0.5 ? 'chicken' : 'crab';
+            }
+            return 'chicken';
+        }
+
+        function getEnemyAssets(type) {
+            switch (type) {
+                case 'crab':
+                    return { image: crabImage, deadImage: crabDeadImage, hp: 1 };
+                case 'hornet':
+                    return { image: hornetImage, deadImage: hornetDeadImage, hp: 2 };
+                default:
+                    return { image: chickenImage, deadImage: chickenDeadImage, hp: 1 };
+            }
+        }
+
+        // Spawn enemies at random positions
         function spawnChicken() {
             if (isGameOver) return;
             const liveChickens = chickens.filter(c => !c.isDead).length;
@@ -1948,6 +2012,9 @@
                 const directionX = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * chickenSpeed + 1);
                 const directionY = -((Math.random() * chickenSpeed) + 1);
 
+                const enemyType = getEnemyType();
+                const assets = getEnemyAssets(enemyType);
+
                 const chicken = {
                     x: x,
                     y: y,
@@ -1955,16 +2022,26 @@
                     dy: directionY,
                     isDead: false,
                     deathTime: 0,
-                    image: chickenImage,
+                    image: assets.image,
+                    deadImage: assets.deadImage,
                     opacity: 1.0,
                     multiplierText: null,
                     textOpacity: 1.0,
                     isGolden: false,
-                    entryScale: 0  // For spawn animation
+                    entryScale: 0,  // For spawn animation
+                    enemyType: enemyType,
+                    hp: assets.hp,
+                    maxHp: assets.hp
                 };
 
-                // Chance for golden chicken
-                if (Math.random() < CONFIG.goldenChickenChance) {
+                // Hornets move a bit faster
+                if (enemyType === 'hornet') {
+                    chicken.dx *= 1.3;
+                    chicken.dy *= 1.2;
+                }
+
+                // Chance for golden chicken (only regular chickens)
+                if (enemyType === 'chicken' && Math.random() < CONFIG.goldenChickenChance) {
                     createGoldenChicken(chicken);
                 }
 
@@ -2107,6 +2184,16 @@
                     ctx.shadowColor = '#00BFFF';
                 }
 
+                // Damage flash for enemies that took a hit but aren't dead
+                if (chicken.damageFlash && !chicken.isDead) {
+                    const flashElapsed = Date.now() - chicken.damageFlash;
+                    if (flashElapsed < 200) {
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#FF0000';
+                        ctx.globalAlpha = 0.6 + Math.sin(flashElapsed / 30) * 0.4;
+                    }
+                }
+
                 if (chicken.dx > 0) {
                     ctx.translate(chicken.x + offsetX + cw / 2, chicken.y + offsetY);
                     ctx.scale(-1, 1);
@@ -2117,6 +2204,23 @@
                 }
 
                 ctx.restore();
+
+                // Draw HP bar for enemies with more than 1 max HP that have taken damage
+                if (!chicken.isDead && chicken.maxHp > 1 && chicken.hp < chicken.maxHp) {
+                    ctx.save();
+                    const barWidth = CONFIG.chickenWidth * 0.7;
+                    const barHeight = 4;
+                    const barX = chicken.x + (CONFIG.chickenWidth - barWidth) / 2;
+                    const barY = chicken.y - 8;
+                    // Background
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(barX, barY, barWidth, barHeight);
+                    // HP fill
+                    const hpRatio = chicken.hp / chicken.maxHp;
+                    ctx.fillStyle = hpRatio > 0.5 ? '#44FF44' : '#FF4444';
+                    ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+                    ctx.restore();
+                }
 
                 // Draw golden crown/star indicator
                 if (chicken.isGolden && !chicken.isDead) {
@@ -2378,7 +2482,7 @@
                     // Change chicken to dead state
                     chicken.isDead = true;
                     chicken.deathTime = currentTime;
-                    chicken.image = chickenDeadImage;
+                    chicken.image = chicken.deadImage || chickenDeadImage;
                     totalChickensHit++;
 
                     // Update combo multiplier
@@ -2461,7 +2565,7 @@
 
             document.getElementById('gameOverOverlay').classList.add('show');
             document.getElementById('finalScoreText').innerText = 'Score: ' + score;
-            document.getElementById('finalWaveText').innerText = 'Wave ' + currentWave + ' | Chickens Hit: ' + totalChickensHit;
+            document.getElementById('finalWaveText').innerText = 'Wave ' + currentWave + ' | Enemies Hit: ' + totalChickensHit;
 
             if (isNewHighScore) {
                 document.getElementById('newHighScore').style.display = 'block';
