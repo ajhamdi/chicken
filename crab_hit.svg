@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Dead crab - flipped upside down, X eyes -->
+  <!-- Flipped body -->
+  <ellipse cx="32" cy="36" rx="18" ry="12" fill="#A93226"/>
+  <ellipse cx="32" cy="38" rx="16" ry="10" fill="#CB4335"/>
+  <ellipse cx="32" cy="39" rx="10" ry="6" fill="#922B21" opacity="0.4"/>
+  <!-- X Eyes (dead) -->
+  <line x1="22" y1="30" x2="18" y2="22" stroke="#A93226" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="18" cy="20" r="4" fill="#DDDDDD"/>
+  <line x1="16" y1="18" x2="20" y2="22" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+  <line x1="20" y1="18" x2="16" y2="22" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="46" cy="20" r="4" fill="#DDDDDD"/>
+  <line x1="44" y1="18" x2="48" y2="22" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+  <line x1="48" y1="18" x2="44" y2="22" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+  <line x1="42" y1="30" x2="46" y2="22" stroke="#A93226" stroke-width="3" stroke-linecap="round"/>
+  <!-- Limp claws -->
+  <path d="M14,36 Q6,40 8,44 Q10,48 14,44" fill="#A93226" stroke="#922B21" stroke-width="1" opacity="0.7"/>
+  <path d="M50,36 Q58,40 56,44 Q54,48 50,44" fill="#A93226" stroke="#922B21" stroke-width="1" opacity="0.7"/>
+  <!-- Legs pointing up (flipped) -->
+  <line x1="18" y1="28" x2="10" y2="18" stroke="#A93226" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="20" y1="26" x2="14" y2="14" stroke="#A93226" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="22" y1="26" x2="18" y2="12" stroke="#A93226" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="46" y1="28" x2="54" y2="18" stroke="#A93226" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="44" y1="26" x2="50" y2="14" stroke="#A93226" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="42" y1="26" x2="46" y2="12" stroke="#A93226" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <!-- Dizzy mouth -->
+  <path d="M28,46 Q32,43 36,46" stroke="#922B21" stroke-width="1.5" fill="none"/>
+</svg>
