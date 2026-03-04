@@ -401,7 +401,8 @@
             <div><span class="instruction-icon">&#11088;</span> Catch golden chickens for huge bonuses</div>
             <div><span class="instruction-icon">&#127873;</span> Grab power-ups: Freeze, Bomb, Double Points</div>
             <div><span class="instruction-icon">&#128299;</span> New weapons unlock as waves progress!</div>
-            <div><span class="instruction-icon">&#9888;&#65039;</span> Game over if 20 chickens escape!</div>
+            <div><span class="instruction-icon">&#9889;</span> Survive to Wave 8 to face the dragons!</div>
+            <div><span class="instruction-icon">&#9888;&#65039;</span> Game over if 20 creatures escape!</div>
         </div>
     </div>
 
@@ -434,9 +435,15 @@
             <span class="weapon-name">Rocket</span>
             <span class="lock-overlay">&#128274; W6</span>
         </div>
+        <div class="weapon-slot locked" data-weapon="laser" onclick="switchWeapon('laser')">
+            <span class="weapon-key">4</span>
+            <span class="weapon-icon">&#9889;</span>
+            <span class="weapon-name">Laser</span>
+            <span class="lock-overlay">&#128274; W8</span>
+        </div>
     </div>
 
-    <div id="dangerLabel">Chicken Overload</div>
+    <div id="dangerLabel">Creature Overload</div>
     <div id="dangerBarContainer">
         <div id="dangerBar"></div>
     </div>
@@ -499,6 +506,11 @@
             machineGunImpactRange: 50,     // bullets only hit chickens within this distance of aim point
             machineGunUnlockWave: 4,
             rocketUnlockWave: 6,
+            laserUnlockWave: 8,
+            laserFireRate: 80,              // ms between laser pulses (very fast)
+            laserDamage: 3,                 // damage per hit (kills dragons fast)
+            laserRange: 700,                // beam range in pixels
+            laserWidth: 4,                  // beam visual width
         };
 
         // ========== ASSET LOADING ==========
@@ -518,6 +530,12 @@
         hornetImage.src = 'hornet.svg';
         const hornetDeadImage = new Image();
         hornetDeadImage.src = 'hornet_hit.svg';
+
+        // Dragon assets (wave 8+)
+        const dragonImage = new Image();
+        dragonImage.src = 'dragon.svg';
+        const dragonDeadImage = new Image();
+        dragonDeadImage.src = 'dragon_hit.svg';
 
         const hammerOffImage = new Image();
         hammerOffImage.src = 'hammer-off.png';
@@ -551,6 +569,12 @@
         actionMusicIntense.loop = true;
         actionMusicIntense.volume = 0.2;
         let intenseMusicTriggered = false;
+
+        // Epic action music (plays at wave 8 with dragon + laser intro)
+        const actionMusicEpic = new Audio('action-music-epic.wav');
+        actionMusicEpic.loop = true;
+        actionMusicEpic.volume = 0.25;
+        let epicMusicTriggered = false;
 
         // ========== GAME STATE ==========
         let score = 0;
@@ -605,6 +629,9 @@
         let autoFireInterval = null; // Machine gun auto-fire interval
         let weaponUnlockTimeout = null;
         let bulletsMissedConsecutive = 0; // Track consecutive bullet misses for combo cut
+        let lastLaserFireTime = 0;       // Laser fire rate limiter
+        let laserBeam = null;            // Active laser beam for rendering
+        let laserHitTarget = null;       // Current laser hit target
 
         // ========== HIGH SCORE ==========
         function loadHighScore() {
@@ -846,6 +873,34 @@
                 osc.start(audioCtx.currentTime + i * 0.1);
                 osc.stop(audioCtx.currentTime + i * 0.1 + 0.4);
             });
+        }
+
+        function playLaserSound() {
+            ensureAudioCtx();
+            // High-pitched zap sound
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(1800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.1);
+            // Electric crackle
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.type = 'square';
+            osc2.frequency.setValueAtTime(3000, audioCtx.currentTime);
+            osc2.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.05);
+            gain2.gain.setValueAtTime(0.06, audioCtx.currentTime);
+            gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
+            osc2.start(audioCtx.currentTime);
+            osc2.stop(audioCtx.currentTime + 0.06);
         }
 
         // ========== PARTICLE SYSTEM ==========
@@ -1224,6 +1279,105 @@
             });
         }
 
+        // ========== LASER SYSTEM ==========
+        function fireLaser() {
+            if (isGameOver) return;
+            const currentTime = Date.now();
+            if (currentTime - lastLaserFireTime < CONFIG.laserFireRate) return;
+            lastLaserFireTime = currentTime;
+
+            // Fire beam from bottom-center toward mouse
+            const startX = canvas.width / 2;
+            const startY = canvas.height - 10;
+            const angle = Math.atan2(mouseY - startY, mouseX - startX);
+            const endX = startX + Math.cos(angle) * CONFIG.laserRange;
+            const endY = startY + Math.sin(angle) * CONFIG.laserRange;
+
+            // Store beam for rendering
+            laserBeam = { startX, startY, endX: mouseX, endY: mouseY, time: currentTime };
+
+            playLaserSound();
+
+            // Check hit along beam — find closest chicken to aim point
+            let closestChicken = null;
+            let closestDist = Infinity;
+            for (let j = 0; j < chickens.length; j++) {
+                const chicken = chickens[j];
+                if (chicken.isDead) continue;
+                const cx = chicken.x + CONFIG.chickenWidth / 2;
+                const cy = chicken.y + CONFIG.chickenHeight / 2;
+                const dx = mouseX - cx;
+                const dy = mouseY - cy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < CONFIG.chickenWidth * 0.8 && dist < closestDist) {
+                    closestDist = dist;
+                    closestChicken = chicken;
+                }
+            }
+
+            if (closestChicken) {
+                bulletsMissedConsecutive = 0;
+                hitChickenWithLaser(closestChicken, currentTime);
+            } else {
+                bulletsMissedConsecutive++;
+                if (bulletsMissedConsecutive >= 6) {
+                    multiplier = 1;
+                    bulletsMissedConsecutive = 0;
+                }
+            }
+
+            // Beam impact particles
+            spawnParticles(mouseX, mouseY, '#00FFFF', 2, false);
+        }
+
+        function hitChickenWithLaser(chicken, currentTime) {
+            chicken.hp = (chicken.hp || 1) - CONFIG.laserDamage;
+            if (chicken.hp > 0) {
+                hitSound.currentTime = 0;
+                hitSound.play();
+                const cx = chicken.x + CONFIG.chickenWidth / 2;
+                const cy = chicken.y + CONFIG.chickenHeight / 2;
+                spawnParticles(cx, cy, '#00FFFF', 3, false);
+                spawnFloatingText(cx, cy - 20, 'ZAP!', '#00FFFF', 16);
+                chicken.damageFlash = currentTime;
+                return;
+            }
+            killChickenWithWeapon(chicken, currentTime);
+        }
+
+        function drawLaserBeam() {
+            if (!laserBeam) return;
+            const elapsed = Date.now() - laserBeam.time;
+            if (elapsed > 120) {
+                laserBeam = null;
+                return;
+            }
+            const alpha = 1 - elapsed / 120;
+            ctx.save();
+            // Outer glow
+            ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.3})`;
+            ctx.lineWidth = CONFIG.laserWidth * 3;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#00FFFF';
+            ctx.beginPath();
+            ctx.moveTo(laserBeam.startX, laserBeam.startY);
+            ctx.lineTo(laserBeam.endX, laserBeam.endY);
+            ctx.stroke();
+            // Core beam
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+            ctx.lineWidth = CONFIG.laserWidth;
+            ctx.beginPath();
+            ctx.moveTo(laserBeam.startX, laserBeam.startY);
+            ctx.lineTo(laserBeam.endX, laserBeam.endY);
+            ctx.stroke();
+            // Impact circle
+            ctx.fillStyle = `rgba(0, 255, 255, ${alpha * 0.5})`;
+            ctx.beginPath();
+            ctx.arc(laserBeam.endX, laserBeam.endY, 8 * alpha, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
         // ========== EXPLOSION SYSTEM ==========
         function triggerExplosion(x, y, currentTime) {
             playExplosionSound();
@@ -1238,8 +1392,9 @@
                 maxRadius: CONFIG.rocketBlastRadius
             });
 
-            // Kill all chickens in blast radius — first collect, then score
+            // Damage all enemies in blast radius — rockets deal 2 HP damage
             const killedChickens = [];
+            const damagedChickens = [];
             chickens.forEach(chicken => {
                 if (!chicken.isDead) {
                     const cx = chicken.x + CONFIG.chickenWidth / 2;
@@ -1248,11 +1403,22 @@
                     const dy = y - cy;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist <= CONFIG.rocketBlastRadius) {
-                        chicken.isDead = true;
-                        chicken.deathTime = currentTime;
-                        chicken.image = chicken.deadImage || chickenDeadImage;
-                        totalChickensHit++;
-                        killedChickens.push(chicken);
+                        chicken.hp = (chicken.hp || 1) - 2;
+                        if (chicken.hp <= 0) {
+                            chicken.isDead = true;
+                            chicken.deathTime = currentTime;
+                            chicken.image = chicken.deadImage || chickenDeadImage;
+                            totalChickensHit++;
+                            killedChickens.push(chicken);
+                        } else {
+                            // Survived the blast — show damage
+                            chicken.damageFlash = currentTime;
+                            damagedChickens.push(chicken);
+                            const dcx = chicken.x + CONFIG.chickenWidth / 2;
+                            const dcy = chicken.y + CONFIG.chickenHeight / 2;
+                            spawnParticles(dcx, dcy, '#FF8800', 4, false);
+                            spawnFloatingText(dcx, dcy - 20, 'HIT!', '#FF8800', 18);
+                        }
                     }
                 }
             });
@@ -1446,8 +1612,8 @@
 
             currentWeapon = weapon;
 
-            // Stop machine gun auto-fire if switching away
-            if (weapon !== 'machinegun' && autoFireInterval) {
+            // Stop auto-fire if switching away from auto-fire weapons
+            if (weapon !== 'machinegun' && weapon !== 'laser' && autoFireInterval) {
                 clearInterval(autoFireInterval);
                 autoFireInterval = null;
             }
@@ -1505,7 +1671,8 @@
 
             const weaponInfo = {
                 machinegun: { name: 'MACHINE GUN', icon: '\uD83D\uDD2B', key: '2' },
-                rocket: { name: 'ROCKET LAUNCHER', icon: '\uD83D\uDE80', key: '3' }
+                rocket: { name: 'ROCKET LAUNCHER', icon: '\uD83D\uDE80', key: '3' },
+                laser: { name: 'LASER CANNON', icon: '\u26A1', key: '4' }
             };
 
             const info = weaponInfo[weapon];
@@ -1544,6 +1711,9 @@
                     break;
                 case '3':
                     if (unlockedWeapons.includes('rocket')) switchWeapon('rocket');
+                    break;
+                case '4':
+                    if (unlockedWeapons.includes('laser')) switchWeapon('laser');
                     break;
             }
         }
@@ -1708,12 +1878,13 @@
                     playFreezeSound();
                     break;
                 case 'BOMB':
-                    // Kill all live chickens on screen
+                    // Kill all live chickens on screen (force kill regardless of HP)
                     playBombSound();
                     triggerShake(12);
                     let bombKills = 0;
                     chickens.forEach(chicken => {
                         if (!chicken.isDead) {
+                            chicken.hp = 0;
                             chicken.isDead = true;
                             chicken.deathTime = currentTime;
                             chicken.image = chicken.deadImage || chickenDeadImage;
@@ -1776,6 +1947,21 @@
                     });
                 }
             }
+
+            // At wave 8, switch to epic action music (dragon + laser cannon intro)
+            if (currentWave > 7 && backgroundMusicStarted && !epicMusicTriggered) {
+                epicMusicTriggered = true;
+                actionMusicIntense.pause();
+                actionMusicMedium.pause();
+                backgroundMusic.pause();
+                const playPromise = actionMusicEpic.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        backgroundMusic.playbackRate = 1.5;
+                        backgroundMusic.play();
+                    });
+                }
+            }
         }
 
         function announceWave(wave) {
@@ -1787,7 +1973,8 @@
             const waveNames = [
                 '', 'The Flock Arrives', 'Clucking Chaos', 'Feather Storm',
                 'Crab Invasion', 'Pincer Panic', 'Hornet Swarm',
-                'Sting Operation', 'Fowl Play', 'Hen-demonium', 'Final Cluck'
+                'Sting Operation', 'Dragon Awakening', 'Fire & Fury',
+                'Dragon Storm', 'Inferno Unleashed', 'Final Cluck'
             ];
 
             textEl.textContent = 'WAVE ' + wave;
@@ -1822,6 +2009,9 @@
             }
             if (currentWave >= CONFIG.rocketUnlockWave) {
                 unlockWeapon('rocket');
+            }
+            if (currentWave >= CONFIG.laserUnlockWave) {
+                unlockWeapon('laser');
             }
         }
 
@@ -1978,15 +2168,15 @@
 
         // Determine enemy type based on current wave
         function getEnemyType() {
-            if (currentWave >= 6) {
-                // Wave 6+: mix of all three types
-                const roll = Math.random();
-                if (roll < 0.4) return 'chicken';
-                if (roll < 0.7) return 'crab';
+            if (currentWave >= 8) {
+                // Wave 8+: only dragons
+                return 'dragon';
+            } else if (currentWave >= 6) {
+                // Wave 6-7: only hornets
                 return 'hornet';
             } else if (currentWave >= 4) {
-                // Wave 4-5: mix of chickens and crabs
-                return Math.random() < 0.5 ? 'chicken' : 'crab';
+                // Wave 4-5: only crabs
+                return 'crab';
             }
             return 'chicken';
         }
@@ -1997,6 +2187,8 @@
                     return { image: crabImage, deadImage: crabDeadImage, hp: 1 };
                 case 'hornet':
                     return { image: hornetImage, deadImage: hornetDeadImage, hp: 2 };
+                case 'dragon':
+                    return { image: dragonImage, deadImage: dragonDeadImage, hp: 4 };
                 default:
                     return { image: chickenImage, deadImage: chickenDeadImage, hp: 1 };
             }
@@ -2040,6 +2232,12 @@
                     chicken.dy *= 1.2;
                 }
 
+                // Dragons are big and menacing, slightly slower but tanky
+                if (enemyType === 'dragon') {
+                    chicken.dx *= 0.9;
+                    chicken.dy *= 0.85;
+                }
+
                 // Chance for golden chicken (only regular chickens)
                 if (enemyType === 'chicken' && Math.random() < CONFIG.goldenChickenChance) {
                     createGoldenChicken(chicken);
@@ -2078,6 +2276,7 @@
             drawChickens();
             drawBullets();
             drawRockets();
+            drawLaserBeam();
             drawExplosions();
             drawParticles();
             updateParticles();
@@ -2388,6 +2587,54 @@
                     ctx.stroke();
                     ctx.restore();
                 }
+            } else if (currentWeapon === 'laser') {
+                // Draw laser targeting reticle
+                const pulse = 1 + Math.sin(Date.now() / 100) * 0.1;
+                ctx.save();
+                ctx.translate(mouseX, mouseY);
+                ctx.scale(pulse, pulse);
+                // Outer diamond
+                ctx.strokeStyle = '#00FFFF';
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00FFFF';
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(18, 0);
+                ctx.lineTo(0, 18);
+                ctx.lineTo(-18, 0);
+                ctx.closePath();
+                ctx.stroke();
+                // Inner crosshair
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(0, -4);
+                ctx.moveTo(0, 4);
+                ctx.lineTo(0, 10);
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(-4, 0);
+                ctx.moveTo(4, 0);
+                ctx.lineTo(10, 0);
+                ctx.stroke();
+                // Center dot
+                ctx.fillStyle = '#00FFFF';
+                ctx.beginPath();
+                ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                // Aim line when firing
+                if (isMouseDown) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 6]);
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 2, canvas.height - 10);
+                    ctx.lineTo(mouseX, mouseY);
+                    ctx.stroke();
+                    ctx.restore();
+                }
             }
         }
 
@@ -2430,6 +2677,18 @@
                 }, CONFIG.machineGunFireRate);
             } else if (currentWeapon === 'rocket') {
                 fireRocket();
+            } else if (currentWeapon === 'laser') {
+                // Fire immediately and start auto-fire
+                fireLaser();
+                if (autoFireInterval) clearInterval(autoFireInterval);
+                autoFireInterval = setInterval(() => {
+                    if (isMouseDown && currentWeapon === 'laser' && !isGameOver) {
+                        fireLaser();
+                    } else {
+                        clearInterval(autoFireInterval);
+                        autoFireInterval = null;
+                    }
+                }, CONFIG.laserFireRate);
             }
 
             event.preventDefault();
@@ -2472,6 +2731,20 @@
                     mouseY >= chicken.y &&
                     mouseY <= chicken.y + CONFIG.chickenHeight
                 ) {
+                    // Hammer deals 1 damage — check HP
+                    chicken.hp = (chicken.hp || 1) - 1;
+                    if (chicken.hp > 0) {
+                        // Not dead yet — show damage feedback
+                        hitSound.currentTime = 0;
+                        hitSound.play();
+                        const cx = chicken.x + CONFIG.chickenWidth / 2;
+                        const cy = chicken.y + CONFIG.chickenHeight / 2;
+                        spawnParticles(cx, cy, '#FFAA00', 3, false);
+                        spawnFloatingText(cx, cy - 20, 'HIT!', '#FFAA00', 16);
+                        chicken.damageFlash = currentTime;
+                        return true;
+                    }
+
                     // Play appropriate sound
                     if (chicken.isGolden) {
                         playGoldenHitSound();
@@ -2592,6 +2865,7 @@
             backgroundMusic.pause();
             actionMusicMedium.pause();
             actionMusicIntense.pause();
+            actionMusicEpic.pause();
             canvas.style.cursor = 'default';
         }
 
@@ -2624,6 +2898,9 @@
             explosions = [];
             lastFireTime = 0;
             lastRocketTime = 0;
+            lastLaserFireTime = 0;
+            laserBeam = null;
+            laserHitTarget = null;
             bulletsMissedConsecutive = 0;
             if (autoFireInterval) {
                 clearInterval(autoFireInterval);
@@ -2662,6 +2939,9 @@
             actionMusicIntense.pause();
             actionMusicIntense.currentTime = 0;
             intenseMusicTriggered = false;
+            actionMusicEpic.pause();
+            actionMusicEpic.currentTime = 0;
+            epicMusicTriggered = false;
 
             canvas.addEventListener('mousedown', hammerDown);
             canvas.addEventListener('mouseup', hammerUp);
