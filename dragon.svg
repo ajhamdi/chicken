@@ -1,51 +1,114 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Dragon body -->
-  <ellipse cx="32" cy="38" rx="18" ry="14" fill="#8B0000"/>
-  <ellipse cx="32" cy="38" rx="16" ry="12" fill="#CC2200"/>
-  <!-- Belly -->
-  <ellipse cx="32" cy="42" rx="10" ry="8" fill="#FF6633"/>
-  <ellipse cx="32" cy="42" rx="8" ry="6" fill="#FF9966"/>
-  <!-- Head -->
-  <ellipse cx="32" cy="18" rx="12" ry="10" fill="#CC2200"/>
-  <ellipse cx="32" cy="20" rx="10" ry="8" fill="#DD3311"/>
-  <!-- Eyes -->
-  <ellipse cx="26" cy="16" rx="3" ry="3.5" fill="#FFD700"/>
-  <circle cx="26" cy="16" r="1.5" fill="#000"/>
-  <ellipse cx="38" cy="16" rx="3" ry="3.5" fill="#FFD700"/>
-  <circle cx="38" cy="16" r="1.5" fill="#000"/>
-  <!-- Horns -->
-  <path d="M22 12 L16 2 L24 10 Z" fill="#444"/>
-  <path d="M42 12 L48 2 L40 10 Z" fill="#444"/>
-  <!-- Snout -->
-  <ellipse cx="32" cy="24" rx="5" ry="3" fill="#AA1100"/>
-  <!-- Nostrils with smoke -->
-  <circle cx="29" cy="23" r="1" fill="#FF4400"/>
-  <circle cx="35" cy="23" r="1" fill="#FF4400"/>
-  <!-- Wings - left -->
-  <path d="M14 30 Q2 18 8 10 Q12 16 14 24 Q10 14 16 8 Q16 18 18 26" fill="#990000" opacity="0.9"/>
-  <path d="M14 30 Q2 18 8 10 Q12 16 14 24" fill="none" stroke="#660000" stroke-width="0.5"/>
-  <!-- Wings - right -->
-  <path d="M50 30 Q62 18 56 10 Q52 16 50 24 Q54 14 48 8 Q48 18 46 26" fill="#990000" opacity="0.9"/>
-  <path d="M50 30 Q62 18 56 10 Q52 16 50 24" fill="none" stroke="#660000" stroke-width="0.5"/>
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#E83030"/>
+      <stop offset="70%" stop-color="#B01010"/>
+      <stop offset="100%" stop-color="#6B0000"/>
+    </radialGradient>
+    <radialGradient id="bellyGrad" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#FFCC66"/>
+      <stop offset="100%" stop-color="#E89030"/>
+    </radialGradient>
+    <radialGradient id="headGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#D42020"/>
+      <stop offset="100%" stop-color="#901010"/>
+    </radialGradient>
+    <radialGradient id="eyeGrad" cx="40%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#FFE44D"/>
+      <stop offset="100%" stop-color="#FF8C00"/>
+    </radialGradient>
+    <radialGradient id="fireGrad" cx="50%" cy="100%" r="80%">
+      <stop offset="0%" stop-color="#FFFF00" stop-opacity="0.9"/>
+      <stop offset="40%" stop-color="#FF6600" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#FF0000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Wings - behind body -->
+  <g opacity="0.92">
+    <!-- Left wing membrane -->
+    <path d="M16 28 Q2 14 6 4 Q10 10 12 18 Q6 8 10 2 Q14 12 16 22 Q8 12 14 6 Q16 16 18 24" fill="#A01020" stroke="#700010" stroke-width="0.4"/>
+    <path d="M16 28 Q8 20 6 4" fill="none" stroke="#C02020" stroke-width="0.3" opacity="0.5"/>
+    <!-- Right wing membrane -->
+    <path d="M48 28 Q62 14 58 4 Q54 10 52 18 Q58 8 54 2 Q50 12 48 22 Q56 12 50 6 Q48 16 46 24" fill="#A01020" stroke="#700010" stroke-width="0.4"/>
+    <path d="M48 28 Q56 20 58 4" fill="none" stroke="#C02020" stroke-width="0.3" opacity="0.5"/>
+  </g>
+
   <!-- Tail -->
-  <path d="M14 40 Q6 44 4 50 Q2 54 6 56 L10 52 Q8 48 14 42" fill="#CC2200"/>
-  <path d="M6 56 L3 60 L8 55 Z" fill="#FF4400"/>
-  <!-- Spikes on back -->
-  <polygon points="26,26 28,20 30,26" fill="#FF4400"/>
-  <polygon points="30,25 32,18 34,25" fill="#FF4400"/>
-  <polygon points="34,26 36,20 38,26" fill="#FF4400"/>
-  <!-- Chest scales -->
-  <path d="M28 36 Q32 34 36 36 Q32 38 28 36" fill="#FFaa44" opacity="0.5"/>
-  <path d="M28 40 Q32 38 36 40 Q32 42 28 40" fill="#FFaa44" opacity="0.5"/>
-  <path d="M29 44 Q32 42 35 44 Q32 46 29 44" fill="#FFaa44" opacity="0.5"/>
-  <!-- Feet -->
-  <path d="M22 50 L18 56 L21 54 L24 56 L26 50" fill="#AA1100"/>
-  <path d="M38 50 L36 56 L39 54 L42 56 L42 50" fill="#AA1100"/>
+  <path d="M16 42 Q8 46 4 52 Q2 56 4 58 Q6 60 8 58 L10 54 Q8 48 16 44" fill="url(#bodyGrad)" stroke="#700010" stroke-width="0.3"/>
+  <path d="M4 58 L1 62 L6 58 L3 63 L7 59" fill="#FF4400" filter="url(#glow)"/>
+
+  <!-- Body -->
+  <ellipse cx="32" cy="38" rx="17" ry="13" fill="url(#bodyGrad)" stroke="#700010" stroke-width="0.3"/>
+
+  <!-- Belly plates -->
+  <ellipse cx="32" cy="42" rx="9" ry="7" fill="url(#bellyGrad)" opacity="0.85"/>
+  <path d="M26 37 Q32 35 38 37" fill="none" stroke="#CC8030" stroke-width="0.4" opacity="0.6"/>
+  <path d="M25 40 Q32 38 39 40" fill="none" stroke="#CC8030" stroke-width="0.4" opacity="0.6"/>
+  <path d="M26 43 Q32 41 38 43" fill="none" stroke="#CC8030" stroke-width="0.4" opacity="0.6"/>
+  <path d="M27 46 Q32 44 37 46" fill="none" stroke="#CC8030" stroke-width="0.4" opacity="0.6"/>
+
+  <!-- Neck -->
+  <path d="M26 30 Q28 24 30 20 L34 20 Q36 24 38 30" fill="url(#headGrad)"/>
+
+  <!-- Head -->
+  <ellipse cx="32" cy="17" rx="11" ry="9.5" fill="url(#headGrad)" stroke="#700010" stroke-width="0.3"/>
+
+  <!-- Brow ridges -->
+  <path d="M22 13 Q26 10 29 13" fill="#901010" stroke="#600008" stroke-width="0.3"/>
+  <path d="M35 13 Q38 10 42 13" fill="#901010" stroke="#600008" stroke-width="0.3"/>
+
+  <!-- Eyes -->
+  <ellipse cx="26" cy="15" rx="3.2" ry="3.5" fill="url(#eyeGrad)" stroke="#804000" stroke-width="0.3"/>
+  <ellipse cx="26" cy="15" rx="1.4" ry="2.8" fill="#111"/>
+  <circle cx="25.2" cy="13.8" r="0.7" fill="#FFF" opacity="0.7"/>
+  <ellipse cx="38" cy="15" rx="3.2" ry="3.5" fill="url(#eyeGrad)" stroke="#804000" stroke-width="0.3"/>
+  <ellipse cx="38" cy="15" rx="1.4" ry="2.8" fill="#111"/>
+  <circle cx="37.2" cy="13.8" r="0.7" fill="#FFF" opacity="0.7"/>
+
+  <!-- Horns -->
+  <path d="M22 10 Q18 4 15 0 Q19 3 22 8" fill="#554433" stroke="#332211" stroke-width="0.4"/>
+  <path d="M42 10 Q46 4 49 0 Q45 3 42 8" fill="#554433" stroke="#332211" stroke-width="0.4"/>
+
+  <!-- Snout -->
+  <ellipse cx="32" cy="22" rx="6" ry="3.5" fill="#AA1500"/>
+  <!-- Nostrils -->
+  <ellipse cx="29" cy="22" rx="1.2" ry="0.8" fill="#440000"/>
+  <ellipse cx="35" cy="22" rx="1.2" ry="0.8" fill="#440000"/>
+
+  <!-- Fire breath -->
+  <g filter="url(#glow)" opacity="0.8">
+    <ellipse cx="32" cy="26" rx="5" ry="3" fill="url(#fireGrad)"/>
+    <ellipse cx="30" cy="22" rx="1.5" ry="1" fill="#FF6600" opacity="0.4"/>
+    <ellipse cx="34" cy="22" rx="1.5" ry="1" fill="#FF6600" opacity="0.4"/>
+  </g>
+
+  <!-- Back spikes -->
+  <polygon points="27,27 28.5,21 30,27" fill="#FF3300" stroke="#CC2200" stroke-width="0.3"/>
+  <polygon points="30,26 32,19 34,26" fill="#FF4400" stroke="#CC2200" stroke-width="0.3"/>
+  <polygon points="33,27 34.5,21 36,27" fill="#FF3300" stroke="#CC2200" stroke-width="0.3"/>
+
+  <!-- Arms -->
+  <path d="M20 34 Q16 36 14 40 L16 39 Q18 36 21 35" fill="#B01010"/>
+  <circle cx="14" cy="40" r="1" fill="#FFD700"/>
+  <path d="M44 34 Q48 36 50 40 L48 39 Q46 36 43 35" fill="#B01010"/>
+  <circle cx="50" cy="40" r="1" fill="#FFD700"/>
+
+  <!-- Legs and feet -->
+  <path d="M24 48 L20 54 L22 53 L24 55 L26 53 L28 48" fill="#901010"/>
+  <path d="M36 48 L34 54 L36 53 L38 55 L40 53 L40 48" fill="#901010"/>
   <!-- Claws -->
-  <circle cx="18" cy="56" r="1" fill="#FFD700"/>
-  <circle cx="24" cy="56" r="1" fill="#FFD700"/>
-  <circle cx="36" cy="56" r="1" fill="#FFD700"/>
-  <circle cx="42" cy="56" r="1" fill="#FFD700"/>
-  <!-- Fire breath glow -->
-  <circle cx="32" cy="24" r="4" fill="#FF4400" opacity="0.15"/>
+  <circle cx="20" cy="55" r="1.1" fill="#FFD700"/>
+  <circle cx="24" cy="56" r="1.1" fill="#FFD700"/>
+  <circle cx="34" cy="55" r="1.1" fill="#FFD700"/>
+  <circle cx="38" cy="56" r="1.1" fill="#FFD700"/>
+
+  <!-- Scale texture highlights -->
+  <circle cx="26" cy="34" r="1.5" fill="#DD2020" opacity="0.3"/>
+  <circle cx="38" cy="34" r="1.5" fill="#DD2020" opacity="0.3"/>
+  <circle cx="32" cy="32" r="1.5" fill="#DD2020" opacity="0.3"/>
 </svg>
