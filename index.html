@@ -1331,7 +1331,12 @@
         }
 
         function hitChickenWithLaser(chicken, currentTime) {
-            chicken.hp = (chicken.hp || 1) - CONFIG.laserDamage;
+            // Laser is a single-hit kill against dragons in the final stage
+            if (chicken.enemyType === 'dragon') {
+                chicken.hp = 0;
+            } else {
+                chicken.hp = (chicken.hp || 1) - CONFIG.laserDamage;
+            }
             if (chicken.hp > 0) {
                 hitSound.currentTime = 0;
                 hitSound.play();

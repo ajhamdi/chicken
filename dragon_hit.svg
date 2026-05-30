@@ -1,45 +1,96 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Dragon body - damaged/hit state -->
-  <ellipse cx="32" cy="38" rx="18" ry="14" fill="#555"/>
-  <ellipse cx="32" cy="38" rx="16" ry="12" fill="#777"/>
-  <!-- Belly -->
-  <ellipse cx="32" cy="42" rx="10" ry="8" fill="#999"/>
-  <ellipse cx="32" cy="42" rx="8" ry="6" fill="#aaa"/>
-  <!-- Head - tilted back in defeat -->
-  <ellipse cx="32" cy="18" rx="12" ry="10" fill="#777"/>
-  <ellipse cx="32" cy="20" rx="10" ry="8" fill="#888"/>
-  <!-- Eyes - X marks (dead) -->
-  <g transform="translate(26,16)" stroke="#FF0000" stroke-width="1.5" fill="none">
-    <line x1="-2" y1="-2" x2="2" y2="2"/>
-    <line x1="2" y1="-2" x2="-2" y2="2"/>
+  <defs>
+    <radialGradient id="bodyGradDead" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#666"/>
+      <stop offset="70%" stop-color="#4A4A4A"/>
+      <stop offset="100%" stop-color="#333"/>
+    </radialGradient>
+    <radialGradient id="bellyGradDead" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#AAA"/>
+      <stop offset="100%" stop-color="#888"/>
+    </radialGradient>
+    <radialGradient id="headGradDead" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#5A5A5A"/>
+      <stop offset="100%" stop-color="#404040"/>
+    </radialGradient>
+    <filter id="smoke">
+      <feGaussianBlur stdDeviation="1.2"/>
+    </filter>
+  </defs>
+
+  <!-- Wings - damaged, drooping -->
+  <g opacity="0.6">
+    <path d="M16 32 Q6 24 10 16 Q14 22 16 28 Q10 18 14 12 Q16 22 18 28" fill="#444" stroke="#333" stroke-width="0.3"/>
+    <path d="M48 32 Q58 24 54 16 Q50 22 48 28 Q54 18 50 12 Q48 22 46 28" fill="#444" stroke="#333" stroke-width="0.3"/>
   </g>
-  <g transform="translate(38,16)" stroke="#FF0000" stroke-width="1.5" fill="none">
-    <line x1="-2" y1="-2" x2="2" y2="2"/>
-    <line x1="2" y1="-2" x2="-2" y2="2"/>
-  </g>
-  <!-- Horns - broken -->
-  <path d="M22 12 L18 5 L24 10 Z" fill="#333"/>
-  <path d="M42 12 L46 5 L40 10 Z" fill="#333"/>
-  <!-- Snout -->
-  <ellipse cx="32" cy="24" rx="5" ry="3" fill="#666"/>
-  <!-- Wings - damaged/drooping -->
-  <path d="M14 30 Q4 22 10 14 Q14 20 16 28" fill="#555" opacity="0.7"/>
-  <path d="M50 30 Q60 22 54 14 Q50 20 48 28" fill="#555" opacity="0.7"/>
+
   <!-- Tail - drooping -->
-  <path d="M14 40 Q8 46 6 52 Q4 56 8 56 L12 52 Q10 48 14 42" fill="#777"/>
-  <!-- Spikes dimmed -->
-  <polygon points="26,26 28,20 30,26" fill="#888"/>
-  <polygon points="30,25 32,18 34,25" fill="#888"/>
-  <polygon points="34,26 36,20 38,26" fill="#888"/>
-  <!-- Damage cracks -->
-  <line x1="24" y1="34" x2="28" y2="40" stroke="#FF4400" stroke-width="1" opacity="0.8"/>
-  <line x1="36" y1="32" x2="40" y2="38" stroke="#FF4400" stroke-width="1" opacity="0.8"/>
-  <line x1="30" y1="30" x2="34" y2="36" stroke="#FF4400" stroke-width="1" opacity="0.8"/>
-  <!-- Feet -->
-  <path d="M22 50 L18 56 L21 54 L24 56 L26 50" fill="#666"/>
-  <path d="M38 50 L36 56 L39 54 L42 56 L42 50" fill="#666"/>
-  <!-- Smoke puffs from damage -->
-  <circle cx="20" cy="28" r="3" fill="#aaa" opacity="0.4"/>
-  <circle cx="44" cy="30" r="2.5" fill="#aaa" opacity="0.3"/>
-  <circle cx="32" cy="10" r="2" fill="#aaa" opacity="0.3"/>
+  <path d="M16 44 Q10 50 6 54 Q4 58 6 60 L10 56 Q10 50 16 46" fill="url(#bodyGradDead)" stroke="#333" stroke-width="0.3"/>
+
+  <!-- Body -->
+  <ellipse cx="32" cy="38" rx="17" ry="13" fill="url(#bodyGradDead)" stroke="#333" stroke-width="0.3"/>
+
+  <!-- Damage cracks on body -->
+  <line x1="24" y1="32" x2="28" y2="40" stroke="#FF4400" stroke-width="1.2" opacity="0.7"/>
+  <line x1="26" y1="38" x2="30" y2="34" stroke="#FF3300" stroke-width="0.8" opacity="0.6"/>
+  <line x1="36" y1="30" x2="40" y2="38" stroke="#FF4400" stroke-width="1.2" opacity="0.7"/>
+  <line x1="38" y1="36" x2="34" y2="32" stroke="#FF3300" stroke-width="0.8" opacity="0.6"/>
+  <line x1="30" y1="42" x2="34" y2="46" stroke="#FF4400" stroke-width="0.8" opacity="0.5"/>
+
+  <!-- Belly plates - faded -->
+  <ellipse cx="32" cy="42" rx="9" ry="7" fill="url(#bellyGradDead)" opacity="0.6"/>
+  <path d="M26 37 Q32 35 38 37" fill="none" stroke="#777" stroke-width="0.4" opacity="0.4"/>
+  <path d="M25 40 Q32 38 39 40" fill="none" stroke="#777" stroke-width="0.4" opacity="0.4"/>
+  <path d="M26 43 Q32 41 38 43" fill="none" stroke="#777" stroke-width="0.4" opacity="0.4"/>
+
+  <!-- Neck -->
+  <path d="M26 30 Q28 24 30 20 L34 20 Q36 24 38 30" fill="url(#headGradDead)"/>
+
+  <!-- Head -->
+  <ellipse cx="32" cy="17" rx="11" ry="9.5" fill="url(#headGradDead)" stroke="#333" stroke-width="0.3"/>
+
+  <!-- Brow ridges -->
+  <path d="M22 13 Q26 11 29 13" fill="#444" stroke="#333" stroke-width="0.3"/>
+  <path d="M35 13 Q38 11 42 13" fill="#444" stroke="#333" stroke-width="0.3"/>
+
+  <!-- Eyes - X marks (dead) -->
+  <g stroke="#FF0000" stroke-width="1.8" stroke-linecap="round" fill="none">
+    <line x1="23.5" y1="12.5" x2="28.5" y2="17.5"/>
+    <line x1="28.5" y1="12.5" x2="23.5" y2="17.5"/>
+    <line x1="35.5" y1="12.5" x2="40.5" y2="17.5"/>
+    <line x1="40.5" y1="12.5" x2="35.5" y2="17.5"/>
+  </g>
+
+  <!-- Broken horns -->
+  <path d="M22 10 Q19 6 18 4" fill="none" stroke="#443322" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M42 10 Q45 6 46 4" fill="none" stroke="#443322" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Snout -->
+  <ellipse cx="32" cy="22" rx="6" ry="3.5" fill="#555"/>
+
+  <!-- Back spikes - dimmed -->
+  <polygon points="27,27 28.5,21 30,27" fill="#777"/>
+  <polygon points="30,26 32,19 34,26" fill="#888"/>
+  <polygon points="33,27 34.5,21 36,27" fill="#777"/>
+
+  <!-- Arms - limp -->
+  <path d="M20 36 Q16 40 14 44 L16 43 Q18 40 21 37" fill="#4A4A4A"/>
+  <path d="M44 36 Q48 40 50 44 L48 43 Q46 40 43 37" fill="#4A4A4A"/>
+
+  <!-- Legs and feet -->
+  <path d="M24 48 L20 54 L22 53 L24 55 L26 53 L28 48" fill="#444"/>
+  <path d="M36 48 L34 54 L36 53 L38 55 L40 53 L40 48" fill="#444"/>
+
+  <!-- Smoke puffs -->
+  <g filter="url(#smoke)" opacity="0.35">
+    <circle cx="20" cy="26" r="3.5" fill="#BBB"/>
+    <circle cx="44" cy="28" r="3" fill="#BBB"/>
+    <circle cx="32" cy="8" r="2.5" fill="#BBB"/>
+    <circle cx="38" cy="44" r="2" fill="#CCC"/>
+    <circle cx="24" cy="46" r="2.5" fill="#CCC"/>
+  </g>
+
+  <!-- Burn marks -->
+  <circle cx="28" cy="36" r="2" fill="#332200" opacity="0.4"/>
+  <circle cx="37" cy="34" r="1.8" fill="#332200" opacity="0.4"/>
 </svg>
