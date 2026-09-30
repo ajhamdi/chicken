@@ -1,0 +1,2971 @@
+<!-- made by Abdullah Hamdi , September 14 , 2024 // with the help of open AI o1-preview model -->
+<!-- Enhanced with exciting features: Feb 2026 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hammer the Chickens Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background: url('farm-background.jpg') no-repeat center center;
+            background-size: cover;
+            cursor: none;
+        }
+        #topBar {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 1;
+            pointer-events: none;
+        }
+        #score, #waveDisplay, #highScoreDisplay {
+            display: inline-block;
+            color: #FFD700;
+            font-size: 22px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000, 0 0 10px rgba(255,215,0,0.5);
+            letter-spacing: 1px;
+        }
+        #waveDisplay {
+            color: #FF6347;
+        }
+        #highScoreDisplay {
+            color: #00FFAA;
+            font-size: 18px;
+        }
+        /* Danger bar container */
+        #dangerBarContainer {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 20px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            z-index: 1;
+        }
+        #dangerBar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+            border-radius: 8px;
+            transition: width 0.3s ease;
+        }
+        #dangerLabel {
+            position: absolute;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            text-shadow: 1px 1px 2px #000;
+            z-index: 1;
+        }
+        /* Power-up status indicators */
+        #powerUpStatus {
+            position: absolute;
+            top: 45px;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .powerup-active {
+            display: inline-block;
+            margin: 0 8px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            animation: powerupPulse 0.8s ease-in-out infinite alternate;
+        }
+        @keyframes powerupPulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+        /* Game Over overlay */
+        #gameOverOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            z-index: 10;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #gameOverOverlay.show {
+            display: flex;
+        }
+        #gameOverText {
+            color: #FF4444;
+            font-size: 64px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 3px 3px 6px #000, 0 0 30px rgba(255,68,68,0.8);
+            margin-bottom: 10px;
+            animation: gameOverShake 0.5s ease-in-out;
+        }
+        @keyframes gameOverShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-20px) rotate(-2deg); }
+            40% { transform: translateX(20px) rotate(2deg); }
+            60% { transform: translateX(-10px) rotate(-1deg); }
+            80% { transform: translateX(10px) rotate(1deg); }
+        }
+        #finalScoreText {
+            color: #FFD700;
+            font-size: 36px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 5px;
+        }
+        #finalWaveText {
+            color: #FF6347;
+            font-size: 24px;
+            font-family: Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 5px;
+        }
+        #newHighScore {
+            color: #00FF88;
+            font-size: 28px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 0 0 20px rgba(0,255,136,0.8);
+            margin-bottom: 15px;
+            display: none;
+            animation: highScorePulse 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes highScorePulse {
+            from { transform: scale(1); opacity: 0.8; }
+            to { transform: scale(1.15); opacity: 1; }
+        }
+        #restartButton {
+            font-size: 24px;
+            padding: 12px 40px;
+            background: linear-gradient(180deg, #FF6347, #CC3322);
+            color: #fff;
+            border: 3px solid #FFD700;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 1px 1px 2px #000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+        }
+        #restartButton:hover {
+            transform: scale(1.05);
+        }
+        #restartButton:active {
+            transform: scale(0.95);
+        }
+        /* Start screen */
+        #startScreen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, #87CEEB 0%, #228B22 60%, #1a6b1a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+        #gameTitle {
+            font-size: 56px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px #000, 0 0 30px rgba(255,215,0,0.6);
+            margin-bottom: 10px;
+            animation: titleBounce 1.5s ease-in-out infinite;
+        }
+        @keyframes titleBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        #gameSubtitle {
+            font-size: 22px;
+            font-family: Arial, sans-serif;
+            color: #fff;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 30px;
+        }
+        #startButton {
+            font-size: 32px;
+            padding: 15px 60px;
+            background: linear-gradient(180deg, #FF6347, #CC3322);
+            color: #fff;
+            border: 4px solid #FFD700;
+            border-radius: 16px;
+            cursor: pointer;
+            font-family: 'Arial Black', Arial, sans-serif;
+            text-shadow: 2px 2px 3px #000;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            transition: transform 0.15s;
+            animation: startPulse 2s ease-in-out infinite;
+        }
+        @keyframes startPulse {
+            0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+            50% { box-shadow: 0 6px 30px rgba(255,215,0,0.8); }
+        }
+        #startButton:hover {
+            transform: scale(1.08);
+        }
+        #instructionsBox {
+            margin-top: 30px;
+            padding: 15px 25px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 12px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.8;
+            text-align: center;
+            max-width: 500px;
+        }
+        .instruction-icon {
+            font-size: 20px;
+            margin-right: 6px;
+        }
+        /* Wave announcement */
+        #waveAnnouncement {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            display: none;
+            text-align: center;
+        }
+        #waveAnnouncement .wave-text {
+            font-size: 60px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #FF6347;
+            text-shadow: 3px 3px 6px #000, 0 0 40px rgba(255,99,71,0.8);
+            animation: waveZoom 1.5s ease-out forwards;
+        }
+        #waveAnnouncement .wave-subtitle {
+            font-size: 24px;
+            color: #FFD700;
+            font-family: Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000;
+            animation: waveZoom 1.5s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+        @keyframes waveZoom {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        /* Weapon selector bar */
+        #weaponBar {
+            position: absolute;
+            bottom: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 2;
+            pointer-events: auto;
+        }
+        .weapon-slot {
+            width: 70px;
+            height: 44px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid #555;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s, border-color 0.2s;
+            position: relative;
+        }
+        .weapon-slot:hover {
+            transform: scale(1.08);
+        }
+        .weapon-slot.active {
+            border-color: #FFD700;
+            box-shadow: 0 0 12px rgba(255,215,0,0.5);
+            background: rgba(255,215,0,0.15);
+        }
+        .weapon-slot.locked {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none;
+        }
+        .weapon-slot .weapon-name {
+            font-size: 9px;
+            color: #ccc;
+            font-family: Arial, sans-serif;
+            margin-top: 2px;
+        }
+        .weapon-slot .weapon-key {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 9px;
+            color: #888;
+            font-family: monospace;
+        }
+        .weapon-slot .weapon-icon {
+            font-size: 18px;
+        }
+        .weapon-slot .lock-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #aaa;
+            background: rgba(0,0,0,0.4);
+            border-radius: 6px;
+        }
+        /* Weapon unlock announcement */
+        #weaponUnlockAnnouncement {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 6;
+            display: none;
+            text-align: center;
+        }
+        #weaponUnlockAnnouncement .unlock-text {
+            font-size: 32px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #00FF88;
+            text-shadow: 3px 3px 6px #000, 0 0 30px rgba(0,255,136,0.8);
+            animation: unlockPop 2s ease-out forwards;
+        }
+        #weaponUnlockAnnouncement .unlock-weapon {
+            font-size: 48px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px #000, 0 0 40px rgba(255,215,0,0.8);
+            animation: unlockPop 2s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+        #weaponUnlockAnnouncement .unlock-hint {
+            font-size: 18px;
+            color: #aaddff;
+            font-family: Arial, sans-serif;
+            text-shadow: 2px 2px 4px #000;
+            animation: unlockPop 2s ease-out 0.4s forwards;
+            opacity: 0;
+        }
+        @keyframes unlockPop {
+            0% { transform: scale(0.3); opacity: 0; }
+            30% { transform: scale(1.3); opacity: 1; }
+            60% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        /* Rocket cooldown indicator */
+        .rocket-cooldown {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: #ff4400;
+            border-radius: 0 0 6px 6px;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <div id="gameTitle">Hammer the Chickens!</div>
+        <div id="gameSubtitle">How long can you defend your farm?</div>
+        <button id="startButton">START GAME</button>
+        <div id="instructionsBox">
+            <div><span class="instruction-icon">&#128296;</span> Click or tap to swing hammer</div>
+            <div><span class="instruction-icon">&#127942;</span> Chain hits for combo multipliers</div>
+            <div><span class="instruction-icon">&#11088;</span> Catch golden chickens for huge bonuses</div>
+            <div><span class="instruction-icon">&#127873;</span> Grab power-ups: Freeze, Bomb, Double Points</div>
+            <div><span class="instruction-icon">&#128299;</span> New weapons unlock as waves progress!</div>
+            <div><span class="instruction-icon">&#9889;</span> Survive to Wave 8 to face the dragons!</div>
+            <div><span class="instruction-icon">&#9888;&#65039;</span> Game over if 20 creatures escape!</div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <div id="topBar">
+        <div id="score">Score: 0</div>
+        <div id="waveDisplay">Wave 1</div>
+        <div id="highScoreDisplay">Best: 0</div>
+    </div>
+
+    <div id="powerUpStatus"></div>
+
+    <!-- Weapon Selector Bar (hidden initially, shown during gameplay) -->
+    <div id="weaponBar" style="display:none;">
+        <div class="weapon-slot active" data-weapon="hammer" onclick="switchWeapon('hammer')">
+            <span class="weapon-key">1</span>
+            <span class="weapon-icon">&#128296;</span>
+            <span class="weapon-name">Hammer</span>
+        </div>
+        <div class="weapon-slot locked" data-weapon="machinegun" onclick="switchWeapon('machinegun')">
+            <span class="weapon-key">2</span>
+            <span class="weapon-icon">&#128299;</span>
+            <span class="weapon-name">Machine Gun</span>
+            <span class="lock-overlay">&#128274; W4</span>
+        </div>
+        <div class="weapon-slot locked" data-weapon="rocket" onclick="switchWeapon('rocket')">
+            <span class="weapon-key">3</span>
+            <span class="weapon-icon">&#128640;</span>
+            <span class="weapon-name">Rocket</span>
+            <span class="lock-overlay">&#128274; W6</span>
+        </div>
+        <div class="weapon-slot locked" data-weapon="laser" onclick="switchWeapon('laser')">
+            <span class="weapon-key">4</span>
+            <span class="weapon-icon">&#9889;</span>
+            <span class="weapon-name">Laser</span>
+            <span class="lock-overlay">&#128274; W8</span>
+        </div>
+    </div>
+
+    <div id="dangerLabel">Creature Overload</div>
+    <div id="dangerBarContainer">
+        <div id="dangerBar"></div>
+    </div>
+
+    <!-- Wave Announcement -->
+    <div id="waveAnnouncement">
+        <div class="wave-text"></div>
+        <div class="wave-subtitle"></div>
+    </div>
+
+    <!-- Weapon Unlock Announcement -->
+    <div id="weaponUnlockAnnouncement">
+        <div class="unlock-text"></div>
+        <div class="unlock-weapon"></div>
+        <div class="unlock-hint"></div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="gameOverOverlay">
+        <div id="gameOverText">GAME OVER</div>
+        <div id="finalScoreText"></div>
+        <div id="finalWaveText"></div>
+        <div id="newHighScore">NEW HIGH SCORE!</div>
+        <button id="restartButton">Play Again</button>
+    </div>
+
+    <script>
+        // ========== CANVAS SETUP ==========
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ========== GAME CONFIGURATION ==========
+        const CONFIG = {
+            maxChickens: 20,
+            chickenWidth: 60,
+            chickenHeight: 60,
+            hammerWidth: 50,
+            hammerHeight: 50,
+            comboTimeLimit: 2000,
+            baseSpawnInterval: 1000,
+            minSpawnInterval: 250,
+            baseChickenSpeed: 2,
+            maxChickenSpeed: 7,
+            goldenChickenChance: 0.08,     // 8% chance per spawn
+            powerUpDropChance: 0.03,        // 3% chance per frame (checked periodically)
+            powerUpSize: 35,
+            particleCount: 12,
+            shakeIntensity: 8,
+            shakeDuration: 300,
+            freezeDuration: 4000,
+            doublePointsDuration: 8000,
+            waveInterval: 25000,            // New wave every 25 seconds
+            // Weapon settings
+            machineGunFireRate: 140,        // ms between shots
+            machineGunBulletSpeed: 14,      // pixels per frame
+            machineGunSpread: 0.08,         // bullet spread angle (radians)
+            rocketCooldown: 800,            // ms between rockets
+            rocketSpeed: 7,                 // pixels per frame
+            rocketBlastRadius: 140,         // explosion radius in pixels
+            machineGunImpactRange: 50,     // bullets only hit chickens within this distance of aim point
+            machineGunUnlockWave: 4,
+            rocketUnlockWave: 6,
+            laserUnlockWave: 8,
+            laserFireRate: 80,              // ms between laser pulses (very fast)
+            laserDamage: 3,                 // damage per hit (kills dragons fast)
+            laserRange: 700,                // beam range in pixels
+            laserWidth: 4,                  // beam visual width
+        };
+
+        // ========== ASSET LOADING ==========
+        const chickenImage = new Image();
+        chickenImage.src = 'chicken.png';
+        const chickenDeadImage = new Image();
+        chickenDeadImage.src = 'chicken-dead.png';
+
+        // Crab assets (wave 4+)
+        const crabImage = new Image();
+        crabImage.src = 'crab.svg';
+        const crabDeadImage = new Image();
+        crabDeadImage.src = 'crab_hit.svg';
+
+        // Hornet assets (wave 6+)
+        const hornetImage = new Image();
+        hornetImage.src = 'hornet.svg';
+        const hornetDeadImage = new Image();
+        hornetDeadImage.src = 'hornet_hit.svg';
+
+        // Dragon assets (wave 8+)
+        const dragonImage = new Image();
+        dragonImage.src = 'dragon.svg';
+        const dragonDeadImage = new Image();
+        dragonDeadImage.src = 'dragon_hit.svg';
+
+        const hammerOffImage = new Image();
+        hammerOffImage.src = 'hammer-off.png';
+        const hammerOnImage = new Image();
+        hammerOnImage.src = 'hammer-on.png';
+
+        let hammerImage = hammerOffImage;
+
+        // Weapon cursor images
+        const crosshairImage = new Image();
+        crosshairImage.src = 'crosshair.svg';
+        const rocketTargetImage = new Image();
+        rocketTargetImage.src = 'rocket-target.svg';
+
+        // Audio
+        const hitSound = new Audio('hit-sound.mp3');
+        const missSound = new Audio('miss-sound.mp3');
+        const backgroundMusic = new Audio('background.mp3');
+        backgroundMusic.loop = true;
+        backgroundMusic.volume = 0.2;
+        let backgroundMusicStarted = false;
+
+        // Medium action music (plays at wave 4 with crab + machine gun intro)
+        const actionMusicMedium = new Audio('action-music-medium.mp3');
+        actionMusicMedium.loop = true;
+        actionMusicMedium.volume = 0.2;
+        let mediumMusicTriggered = false;
+
+        // Intense action music (plays at wave 6 with hornet + rocket launcher intro)
+        const actionMusicIntense = new Audio('action-music-intense.mp3');
+        actionMusicIntense.loop = true;
+        actionMusicIntense.volume = 0.2;
+        let intenseMusicTriggered = false;
+
+        // Epic action music (plays at wave 8 with dragon + laser intro)
+        const actionMusicEpic = new Audio('action-music-epic.wav');
+        actionMusicEpic.loop = true;
+        actionMusicEpic.volume = 0.25;
+        let epicMusicTriggered = false;
+
+        // ========== GAME STATE ==========
+        let score = 0;
+        let multiplier = 1;
+        let lastHitTime = 0;
+        let chickens = [];
+        let particles = [];
+        let floatingTexts = [];
+        let powerUps = [];
+        let spawnInterval = CONFIG.baseSpawnInterval;
+        let chickenSpeed = CONFIG.baseChickenSpeed;
+        let gameTime = 0;
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+        let isMouseDown = false;
+        let isGameOver = false;
+        let startTime;
+        let highScore = parseInt(localStorage.getItem('chickenGameHighScore')) || 0;
+        let totalChickensHit = 0;
+
+        // Wave system
+        let currentWave = 1;
+        let lastWaveTime = 0;
+        let waveAnnouncementTimeout = null;
+
+        // Screen shake
+        let shakeTime = 0;
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+
+        // Active power-ups
+        let freezeActive = false;
+        let freezeEndTime = 0;
+        let doublePointsActive = false;
+        let doublePointsEndTime = 0;
+
+        // Power-up spawn timer
+        let lastPowerUpSpawn = 0;
+        let powerUpSpawnCooldown = 8000; // Min time between power-up spawns
+
+        // Spawn timer ID
+        let spawnTimeoutId = null;
+
+        // ========== WEAPON SYSTEM STATE ==========
+        let currentWeapon = 'hammer';
+        let unlockedWeapons = ['hammer'];
+        let bullets = [];           // Machine gun bullets
+        let rockets = [];           // Rocket projectiles
+        let explosions = [];        // Explosion effects
+        let lastFireTime = 0;       // Machine gun auto-fire timer
+        let lastRocketTime = 0;     // Rocket cooldown timer
+        let autoFireInterval = null; // Machine gun auto-fire interval
+        let weaponUnlockTimeout = null;
+        let bulletsMissedConsecutive = 0; // Track consecutive bullet misses for combo cut
+        let lastLaserFireTime = 0;       // Laser fire rate limiter
+        let laserBeam = null;            // Active laser beam for rendering
+        let laserHitTarget = null;       // Current laser hit target
+
+        // ========== HIGH SCORE ==========
+        function loadHighScore() {
+            highScore = parseInt(localStorage.getItem('chickenGameHighScore')) || 0;
+            document.getElementById('highScoreDisplay').innerText = 'Best: ' + highScore;
+        }
+
+        function saveHighScore() {
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('chickenGameHighScore', highScore);
+                return true;
+            }
+            return false;
+        }
+
+        // ========== SYNTHESIZED SOUND EFFECTS ==========
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function ensureAudioCtx() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+        }
+
+        function playPowerUpSound() {
+            ensureAudioCtx();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function playFreezeSound() {
+            ensureAudioCtx();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1500, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playBombSound() {
+            ensureAudioCtx();
+            // Low rumble
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.6);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.6);
+            // Noise burst
+            const bufferSize = audioCtx.sampleRate * 0.3;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+            }
+            const noise = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            noise.start(audioCtx.currentTime);
+        }
+
+        function playGoldenHitSound() {
+            ensureAudioCtx();
+            const notes = [800, 1000, 1200, 1600];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.08);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.08 + 0.3);
+                osc.start(audioCtx.currentTime + i * 0.08);
+                osc.stop(audioCtx.currentTime + i * 0.08 + 0.3);
+            });
+        }
+
+        function playWaveSound() {
+            ensureAudioCtx();
+            const notes = [523, 659, 784, 1047];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.12);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.12 + 0.25);
+                osc.start(audioCtx.currentTime + i * 0.12);
+                osc.stop(audioCtx.currentTime + i * 0.12 + 0.25);
+            });
+        }
+
+        // ========== WEAPON SOUND EFFECTS ==========
+        function playGunSound() {
+            ensureAudioCtx();
+            // Short percussive burst
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.06);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.08);
+            // Noise click
+            const bufferSize = audioCtx.sampleRate * 0.04;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+            }
+            const noise = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+            noise.start(audioCtx.currentTime);
+        }
+
+        function playRocketFireSound() {
+            ensureAudioCtx();
+            // Whoosh sound
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.4);
+            // White noise burst for thrust
+            const bufferSize = audioCtx.sampleRate * 0.3;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize) * 0.5;
+            }
+            const noise = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            noise.start(audioCtx.currentTime);
+        }
+
+        function playExplosionSound() {
+            ensureAudioCtx();
+            // Deep bass thud
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.connect(gain1);
+            gain1.connect(audioCtx.destination);
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc1.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.8);
+            gain1.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+            osc1.start(audioCtx.currentTime);
+            osc1.stop(audioCtx.currentTime + 0.8);
+            // Crackle
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.type = 'sawtooth';
+            osc2.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc2.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+            gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc2.start(audioCtx.currentTime);
+            osc2.stop(audioCtx.currentTime + 0.5);
+            // Explosion noise
+            const bufferSize = audioCtx.sampleRate * 0.6;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            }
+            const noise = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+            noise.start(audioCtx.currentTime);
+        }
+
+        function playWeaponUnlockSound() {
+            ensureAudioCtx();
+            const notes = [523, 659, 784, 1047, 1319];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.1);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.1 + 0.4);
+                osc.start(audioCtx.currentTime + i * 0.1);
+                osc.stop(audioCtx.currentTime + i * 0.1 + 0.4);
+            });
+        }
+
+        function playLaserSound() {
+            ensureAudioCtx();
+            // High-pitched zap sound
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(1800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.1);
+            // Electric crackle
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.type = 'square';
+            osc2.frequency.setValueAtTime(3000, audioCtx.currentTime);
+            osc2.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.05);
+            gain2.gain.setValueAtTime(0.06, audioCtx.currentTime);
+            gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
+            osc2.start(audioCtx.currentTime);
+            osc2.stop(audioCtx.currentTime + 0.06);
+        }
+
+        // ========== PARTICLE SYSTEM ==========
+        function spawnParticles(x, y, color, count, isGolden) {
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+                const speed = 2 + Math.random() * 4;
+                const size = isGolden ? (4 + Math.random() * 6) : (3 + Math.random() * 4);
+                particles.push({
+                    x: x,
+                    y: y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed - 2,
+                    size: size,
+                    color: color,
+                    life: 1.0,
+                    decay: 0.015 + Math.random() * 0.02,
+                    gravity: 0.1,
+                    isGolden: isGolden
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.dy += p.gravity;
+                p.life -= p.decay;
+                p.size *= 0.98;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.life;
+                if (p.isGolden) {
+                    // Glowing golden particle
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#FFD700';
+                }
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                // Draw feather-like shapes
+                ctx.ellipse(p.x, p.y, p.size, p.size * 0.5, Math.atan2(p.dy, p.dx), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        // ========== FLOATING TEXT ==========
+        function spawnFloatingText(x, y, text, color, size) {
+            floatingTexts.push({
+                x: x,
+                y: y,
+                text: text,
+                color: color,
+                size: size || 24,
+                life: 1.0,
+                dy: -2
+            });
+        }
+
+        function updateFloatingTexts() {
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y += ft.dy;
+                ft.dy *= 0.98;
+                ft.life -= 0.02;
+                if (ft.life <= 0) {
+                    floatingTexts.splice(i, 1);
+                }
+            }
+        }
+
+        function drawFloatingTexts() {
+            floatingTexts.forEach(ft => {
+                ctx.save();
+                ctx.globalAlpha = ft.life;
+                ctx.fillStyle = ft.color;
+                ctx.font = `bold ${ft.size}px Arial Black, Arial`;
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#000';
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            });
+        }
+
+        // ========== SCREEN SHAKE ==========
+        function triggerShake(intensity) {
+            shakeTime = CONFIG.shakeDuration;
+            shakeOffsetX = 0;
+            shakeOffsetY = 0;
+        }
+
+        function updateShake(dt) {
+            if (shakeTime > 0) {
+                shakeTime -= dt;
+                const intensity = CONFIG.shakeIntensity * (shakeTime / CONFIG.shakeDuration);
+                shakeOffsetX = (Math.random() - 0.5) * intensity * 2;
+                shakeOffsetY = (Math.random() - 0.5) * intensity * 2;
+            } else {
+                shakeOffsetX = 0;
+                shakeOffsetY = 0;
+            }
+        }
+
+        // ========== BULLET SYSTEM (MACHINE GUN) ==========
+        function fireBullet() {
+            if (isGameOver) return;
+            const currentTime = Date.now();
+            if (currentTime - lastFireTime < CONFIG.machineGunFireRate) return;
+            lastFireTime = currentTime;
+
+            // Fire from bottom-center of screen toward mouse
+            const startX = canvas.width / 2;
+            const startY = canvas.height - 10;
+            const angle = Math.atan2(mouseY - startY, mouseX - startX);
+            // Add slight spread
+            const spread = (Math.random() - 0.5) * CONFIG.machineGunSpread;
+            // Bullet travels only as far as the aim point (plus a small buffer)
+            const distToAim = Math.sqrt((mouseX - startX) ** 2 + (mouseY - startY) ** 2);
+
+            bullets.push({
+                x: startX,
+                y: startY,
+                dx: Math.cos(angle + spread) * CONFIG.machineGunBulletSpeed,
+                dy: Math.sin(angle + spread) * CONFIG.machineGunBulletSpeed,
+                life: 1.0,
+                trail: [],
+                distToTarget: distToAim + 20,
+                distTraveled: 0
+            });
+
+            playGunSound();
+            // Muzzle flash particles
+            spawnParticles(startX, startY, '#FFDD44', 3, false);
+        }
+
+        function updateBullets() {
+            const currentTime = Date.now();
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                // Store trail positions
+                b.trail.push({ x: b.x, y: b.y });
+                if (b.trail.length > 5) b.trail.shift();
+
+                b.x += b.dx;
+                b.y += b.dy;
+                b.distTraveled += CONFIG.machineGunBulletSpeed;
+
+                // Check collision with chickens only near the impact point
+                // (bullets pass through chickens along the trajectory)
+                let hitChicken = false;
+                const nearImpact = b.distTraveled >= b.distToTarget - CONFIG.machineGunImpactRange;
+                if (nearImpact) {
+                    for (let j = 0; j < chickens.length; j++) {
+                        const chicken = chickens[j];
+                        if (!chicken.isDead &&
+                            b.x >= chicken.x && b.x <= chicken.x + CONFIG.chickenWidth &&
+                            b.y >= chicken.y && b.y <= chicken.y + CONFIG.chickenHeight
+                        ) {
+                            // Hit chicken — reset miss counter
+                            bulletsMissedConsecutive = 0;
+                            hitChickenWithBullet(chicken, currentTime);
+                            bullets.splice(i, 1);
+                            hitChicken = true;
+                            break;
+                        }
+                    }
+                }
+                if (hitChicken) continue;
+
+                // Remove bullet once it has reached the aim point or gone off screen
+                if (b.distTraveled >= b.distToTarget ||
+                    b.x < -10 || b.x > canvas.width + 10 || b.y < -10 || b.y > canvas.height + 10) {
+                    // Bullet expired without a kill — track missed bullets
+                    bulletsMissedConsecutive++;
+                    if (bulletsMissedConsecutive >= 4) {
+                        multiplier = 1;
+                        bulletsMissedConsecutive = 0;
+                    }
+                    bullets.splice(i, 1);
+                    continue;
+                }
+            }
+        }
+
+        function drawBullets() {
+            bullets.forEach(b => {
+                ctx.save();
+                // Draw trail
+                if (b.trail.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(b.trail[0].x, b.trail[0].y);
+                    for (let t = 1; t < b.trail.length; t++) {
+                        ctx.lineTo(b.trail[t].x, b.trail[t].y);
+                    }
+                    ctx.lineTo(b.x, b.y);
+                    ctx.strokeStyle = 'rgba(255, 220, 60, 0.4)';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+                // Draw bullet
+                const angle = Math.atan2(b.dy, b.dx);
+                ctx.translate(b.x, b.y);
+                ctx.rotate(angle);
+                // Bullet glow
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#FFDD44';
+                // Bullet shape (elongated)
+                ctx.fillStyle = '#FFDD44';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Bullet core
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.ellipse(1, 0, 3, 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        // ========== ROCKET SYSTEM ==========
+        function fireRocket() {
+            if (isGameOver) return;
+            const currentTime = Date.now();
+            if (currentTime - lastRocketTime < CONFIG.rocketCooldown) return;
+            lastRocketTime = currentTime;
+
+            const startX = canvas.width / 2;
+            const startY = canvas.height - 10;
+            const targetX = mouseX;
+            const targetY = mouseY;
+            const angle = Math.atan2(targetY - startY, targetX - startX);
+            const dist = Math.sqrt((targetX - startX) ** 2 + (targetY - startY) ** 2);
+
+            rockets.push({
+                x: startX,
+                y: startY,
+                dx: Math.cos(angle) * CONFIG.rocketSpeed,
+                dy: Math.sin(angle) * CONFIG.rocketSpeed,
+                targetX: targetX,
+                targetY: targetY,
+                distToTarget: dist,
+                distTraveled: 0,
+                angle: angle,
+                trail: [],
+                alive: true
+            });
+
+            playRocketFireSound();
+        }
+
+        function updateRockets() {
+            const currentTime = Date.now();
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                const r = rockets[i];
+                if (!r.alive) {
+                    rockets.splice(i, 1);
+                    continue;
+                }
+
+                // Store trail
+                r.trail.push({ x: r.x, y: r.y, time: currentTime });
+                if (r.trail.length > 12) r.trail.shift();
+                // Remove old trail entries
+                r.trail = r.trail.filter(t => currentTime - t.time < 400);
+
+                r.x += r.dx;
+                r.y += r.dy;
+                r.distTraveled += CONFIG.rocketSpeed;
+
+                // Spawn smoke trail particles
+                if (Math.random() < 0.5) {
+                    particles.push({
+                        x: r.x - r.dx * 0.5,
+                        y: r.y - r.dy * 0.5,
+                        dx: (Math.random() - 0.5) * 1.5,
+                        dy: (Math.random() - 0.5) * 1.5,
+                        size: 3 + Math.random() * 3,
+                        color: Math.random() < 0.5 ? '#FF6600' : '#888888',
+                        life: 0.6,
+                        decay: 0.03 + Math.random() * 0.02,
+                        gravity: -0.05,
+                        isGolden: false
+                    });
+                }
+
+                // Check if rocket reached target or went off screen
+                // Rockets always fly to the target — no early detonation on path chickens
+                if (r.distTraveled >= r.distToTarget ||
+                    r.x < -20 || r.x > canvas.width + 20 ||
+                    r.y < -20 || r.y > canvas.height + 20) {
+                    // Explode at target!
+                    triggerExplosion(r.x, r.y, currentTime);
+                    r.alive = false;
+                    continue;
+                }
+            }
+        }
+
+        function drawRockets() {
+            rockets.forEach(r => {
+                if (!r.alive) return;
+                ctx.save();
+
+                // Draw exhaust trail
+                if (r.trail.length > 1) {
+                    const now = Date.now();
+                    for (let t = 0; t < r.trail.length - 1; t++) {
+                        const age = (now - r.trail[t].time) / 400;
+                        ctx.globalAlpha = (1 - age) * 0.6;
+                        ctx.beginPath();
+                        ctx.arc(r.trail[t].x, r.trail[t].y, 3 * (1 - age) + 1, 0, Math.PI * 2);
+                        ctx.fillStyle = `hsl(${30 - age * 30}, 100%, ${60 - age * 20}%)`;
+                        ctx.fill();
+                    }
+                }
+
+                ctx.globalAlpha = 1;
+                ctx.translate(r.x, r.y);
+                ctx.rotate(r.angle);
+
+                // Rocket glow
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#FF4400';
+
+                // Rocket body
+                ctx.fillStyle = '#cc3333';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 10, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Nose cone
+                ctx.fillStyle = '#ff5555';
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.lineTo(5, -4);
+                ctx.lineTo(5, 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Fins
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.moveTo(-8, -2);
+                ctx.lineTo(-13, -7);
+                ctx.lineTo(-6, -3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-8, 2);
+                ctx.lineTo(-13, 7);
+                ctx.lineTo(-6, 3);
+                ctx.closePath();
+                ctx.fill();
+
+                // Exhaust flame
+                ctx.fillStyle = '#FFAA00';
+                ctx.beginPath();
+                ctx.moveTo(-8, -3);
+                ctx.lineTo(-15 - Math.random() * 5, 0);
+                ctx.lineTo(-8, 3);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+            });
+        }
+
+        // ========== LASER SYSTEM ==========
+        function fireLaser() {
+            if (isGameOver) return;
+            const currentTime = Date.now();
+            if (currentTime - lastLaserFireTime < CONFIG.laserFireRate) return;
+            lastLaserFireTime = currentTime;
+
+            // Fire beam from bottom-center toward mouse
+            const startX = canvas.width / 2;
+            const startY = canvas.height - 10;
+            const angle = Math.atan2(mouseY - startY, mouseX - startX);
+            const endX = startX + Math.cos(angle) * CONFIG.laserRange;
+            const endY = startY + Math.sin(angle) * CONFIG.laserRange;
+
+            // Store beam for rendering
+            laserBeam = { startX, startY, endX: mouseX, endY: mouseY, time: currentTime };
+
+            playLaserSound();
+
+            // Check hit along beam — find closest chicken to aim point
+            let closestChicken = null;
+            let closestDist = Infinity;
+            for (let j = 0; j < chickens.length; j++) {
+                const chicken = chickens[j];
+                if (chicken.isDead) continue;
+                const cx = chicken.x + CONFIG.chickenWidth / 2;
+                const cy = chicken.y + CONFIG.chickenHeight / 2;
+                const dx = mouseX - cx;
+                const dy = mouseY - cy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < CONFIG.chickenWidth * 0.8 && dist < closestDist) {
+                    closestDist = dist;
+                    closestChicken = chicken;
+                }
+            }
+
+            if (closestChicken) {
+                bulletsMissedConsecutive = 0;
+                hitChickenWithLaser(closestChicken, currentTime);
+            } else {
+                bulletsMissedConsecutive++;
+                if (bulletsMissedConsecutive >= 6) {
+                    multiplier = 1;
+                    bulletsMissedConsecutive = 0;
+                }
+            }
+
+            // Beam impact particles
+            spawnParticles(mouseX, mouseY, '#00FFFF', 2, false);
+        }
+
+        function hitChickenWithLaser(chicken, currentTime) {
+            // Laser is a single-hit kill against dragons in the final stage
+            if (chicken.enemyType === 'dragon') {
+                chicken.hp = 0;
+            } else {
+                chicken.hp = (chicken.hp || 1) - CONFIG.laserDamage;
+            }
+            if (chicken.hp > 0) {
+                hitSound.currentTime = 0;
+                hitSound.play();
+                const cx = chicken.x + CONFIG.chickenWidth / 2;
+                const cy = chicken.y + CONFIG.chickenHeight / 2;
+                spawnParticles(cx, cy, '#00FFFF', 3, false);
+                spawnFloatingText(cx, cy - 20, 'ZAP!', '#00FFFF', 16);
+                chicken.damageFlash = currentTime;
+                return;
+            }
+            killChickenWithWeapon(chicken, currentTime);
+        }
+
+        function drawLaserBeam() {
+            if (!laserBeam) return;
+            const elapsed = Date.now() - laserBeam.time;
+            if (elapsed > 120) {
+                laserBeam = null;
+                return;
+            }
+            const alpha = 1 - elapsed / 120;
+            ctx.save();
+            // Outer glow
+            ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.3})`;
+            ctx.lineWidth = CONFIG.laserWidth * 3;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#00FFFF';
+            ctx.beginPath();
+            ctx.moveTo(laserBeam.startX, laserBeam.startY);
+            ctx.lineTo(laserBeam.endX, laserBeam.endY);
+            ctx.stroke();
+            // Core beam
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+            ctx.lineWidth = CONFIG.laserWidth;
+            ctx.beginPath();
+            ctx.moveTo(laserBeam.startX, laserBeam.startY);
+            ctx.lineTo(laserBeam.endX, laserBeam.endY);
+            ctx.stroke();
+            // Impact circle
+            ctx.fillStyle = `rgba(0, 255, 255, ${alpha * 0.5})`;
+            ctx.beginPath();
+            ctx.arc(laserBeam.endX, laserBeam.endY, 8 * alpha, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // ========== EXPLOSION SYSTEM ==========
+        function triggerExplosion(x, y, currentTime) {
+            playExplosionSound();
+            triggerShake(15);
+
+            // Create explosion visual
+            explosions.push({
+                x: x,
+                y: y,
+                startTime: currentTime,
+                duration: 600,
+                maxRadius: CONFIG.rocketBlastRadius
+            });
+
+            // Damage all enemies in blast radius — rockets deal 2 HP damage
+            const killedChickens = [];
+            const damagedChickens = [];
+            chickens.forEach(chicken => {
+                if (!chicken.isDead) {
+                    const cx = chicken.x + CONFIG.chickenWidth / 2;
+                    const cy = chicken.y + CONFIG.chickenHeight / 2;
+                    const dx = x - cx;
+                    const dy = y - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist <= CONFIG.rocketBlastRadius) {
+                        chicken.hp = (chicken.hp || 1) - 2;
+                        if (chicken.hp <= 0) {
+                            chicken.isDead = true;
+                            chicken.deathTime = currentTime;
+                            chicken.image = chicken.deadImage || chickenDeadImage;
+                            totalChickensHit++;
+                            killedChickens.push(chicken);
+                        } else {
+                            // Survived the blast — show damage
+                            chicken.damageFlash = currentTime;
+                            damagedChickens.push(chicken);
+                            const dcx = chicken.x + CONFIG.chickenWidth / 2;
+                            const dcy = chicken.y + CONFIG.chickenHeight / 2;
+                            spawnParticles(dcx, dcy, '#FF8800', 4, false);
+                            spawnFloatingText(dcx, dcy - 20, 'HIT!', '#FF8800', 18);
+                        }
+                    }
+                }
+            });
+
+            const killCount = killedChickens.length;
+
+            // Rocket launcher streak: must kill 2+ in one shot to maintain combo
+            if (killCount >= 2) {
+                // Multi-kill — maintain/increment combo
+                if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
+                    multiplier += killCount;
+                } else {
+                    multiplier = killCount;
+                }
+                lastHitTime = currentTime;
+            } else {
+                // 0 or 1 kill — reset combo
+                multiplier = 1;
+            }
+
+            // Award points and visual effects for each killed chicken
+            killedChickens.forEach(chicken => {
+                let points = multiplier;
+                if (chicken.isGolden) points *= 10;
+                if (doublePointsActive) points *= 2;
+                score += points;
+
+                const kcx = chicken.x + CONFIG.chickenWidth / 2;
+                const kcy = chicken.y + CONFIG.chickenHeight / 2;
+                spawnParticles(kcx, kcy, '#FF4444', 4, false);
+                spawnFloatingText(kcx, kcy - 20, '+' + points,
+                    chicken.isGolden ? '#FFD700' : '#FF6644', 22);
+
+                if (multiplier >= 2) {
+                    chicken.multiplierText = 'x' + multiplier;
+                }
+                if (chicken.isGolden) {
+                    chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
+                }
+            });
+
+            if (killCount > 0) {
+                updateScore();
+            }
+
+            // Explosion particles
+            const explosionColors = ['#FF4400', '#FF6600', '#FF8800', '#FFAA00', '#FFCC00', '#FFFFFF'];
+            explosionColors.forEach(color => {
+                spawnParticles(x, y, color, 6, true);
+            });
+
+            // Big floating text for multi-kills
+            if (killCount >= 3) {
+                spawnFloatingText(x, y - 40, killCount + ' KILLS!', '#FF4400', 32);
+            } else if (killCount >= 2) {
+                spawnFloatingText(x, y - 40, 'DOUBLE KILL!', '#FF6600', 28);
+            }
+        }
+
+        function updateExplosions() {
+            const currentTime = Date.now();
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const e = explosions[i];
+                if (currentTime - e.startTime > e.duration) {
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+
+        function drawExplosions() {
+            const currentTime = Date.now();
+            explosions.forEach(e => {
+                const elapsed = currentTime - e.startTime;
+                const progress = elapsed / e.duration;
+                if (progress > 1) return;
+
+                const radius = e.maxRadius * Math.min(progress * 2, 1);
+                const alpha = 1 - progress;
+
+                ctx.save();
+
+                // Outer glow
+                const gradient = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, radius);
+                gradient.addColorStop(0, `rgba(255, 255, 200, ${alpha * 0.8})`);
+                gradient.addColorStop(0.3, `rgba(255, 150, 0, ${alpha * 0.6})`);
+                gradient.addColorStop(0.6, `rgba(255, 60, 0, ${alpha * 0.3})`);
+                gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Shockwave ring
+                if (progress < 0.5) {
+                    const ringProgress = progress * 2;
+                    const ringRadius = e.maxRadius * ringProgress * 1.2;
+                    ctx.strokeStyle = `rgba(255, 200, 100, ${(1 - ringProgress) * 0.5})`;
+                    ctx.lineWidth = 3 * (1 - ringProgress);
+                    ctx.beginPath();
+                    ctx.arc(e.x, e.y, ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            });
+        }
+
+        // ========== WEAPON HELPER: KILL CHICKEN ==========
+        // Machine gun bullets deal 1 damage — hornets need 2 hits
+        function hitChickenWithBullet(chicken, currentTime) {
+            chicken.hp = (chicken.hp || 1) - 1;
+            if (chicken.hp > 0) {
+                // Not dead yet — show damage feedback
+                hitSound.currentTime = 0;
+                hitSound.play();
+                const cx = chicken.x + CONFIG.chickenWidth / 2;
+                const cy = chicken.y + CONFIG.chickenHeight / 2;
+                spawnParticles(cx, cy, '#FFAA00', 3, false);
+                spawnFloatingText(cx, cy - 20, 'HIT!', '#FFAA00', 16);
+                // Brief flash effect
+                chicken.damageFlash = currentTime;
+                return;
+            }
+            // HP depleted — kill it
+            killChickenWithWeapon(chicken, currentTime);
+        }
+
+        function killChickenWithWeapon(chicken, currentTime) {
+            if (chicken.isGolden) {
+                playGoldenHitSound();
+            }
+            hitSound.currentTime = 0;
+            hitSound.play();
+
+            chicken.isDead = true;
+            chicken.deathTime = currentTime;
+            chicken.image = chicken.deadImage || chickenDeadImage;
+            totalChickensHit++;
+
+            // Update combo
+            if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
+                multiplier++;
+            } else {
+                multiplier = 1;
+            }
+            lastHitTime = currentTime;
+
+            // Calculate points
+            let points = multiplier;
+            if (chicken.isGolden) points *= 10;
+            if (doublePointsActive) points *= 2;
+            score += points;
+            updateScore();
+
+            // Visual feedback
+            const cx = chicken.x + CONFIG.chickenWidth / 2;
+            const cy = chicken.y + CONFIG.chickenHeight / 2;
+
+            const featherColors = chicken.isGolden
+                ? ['#FFD700', '#FFA500', '#FFEC8B', '#FFE4B5']
+                : ['#FFFFFF', '#F5DEB3', '#DEB887', '#CD853F'];
+            featherColors.forEach(color => {
+                spawnParticles(cx, cy, color, 3, chicken.isGolden);
+            });
+
+            let scoreText = '+' + points;
+            const textColor = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
+            const textSize = chicken.isGolden ? 32 : (20 + Math.min(multiplier * 2, 16));
+            spawnFloatingText(cx, cy - 20, scoreText, textColor, textSize);
+
+            if (multiplier >= 2) {
+                chicken.multiplierText = 'x' + multiplier;
+            }
+            if (chicken.isGolden) {
+                chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
+            }
+
+            if (multiplier >= 5) {
+                triggerShake(multiplier);
+            }
+            if (multiplier >= 8) {
+                spawnParticles(cx, cy, getComboColor(multiplier), 8, true);
+            }
+        }
+
+        // ========== WEAPON SWITCHING ==========
+        function switchWeapon(weapon) {
+            if (isGameOver) return;
+            if (!unlockedWeapons.includes(weapon)) return;
+            if (currentWeapon === weapon) return;
+
+            currentWeapon = weapon;
+
+            // Stop auto-fire if switching away from auto-fire weapons
+            if (weapon !== 'machinegun' && weapon !== 'laser' && autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
+            }
+
+            // Update weapon selector UI
+            updateWeaponSelectorUI();
+        }
+
+        function updateWeaponSelectorUI() {
+            const slots = document.querySelectorAll('.weapon-slot');
+            slots.forEach(slot => {
+                const weapon = slot.dataset.weapon;
+                slot.classList.remove('active');
+                if (weapon === currentWeapon) {
+                    slot.classList.add('active');
+                }
+                if (unlockedWeapons.includes(weapon)) {
+                    slot.classList.remove('locked');
+                    const lock = slot.querySelector('.lock-overlay');
+                    if (lock) lock.style.display = 'none';
+                }
+            });
+
+            // Update rocket cooldown indicator
+            const rocketSlot = document.querySelector('.weapon-slot[data-weapon="rocket"]');
+            if (rocketSlot && unlockedWeapons.includes('rocket')) {
+                let cooldownBar = rocketSlot.querySelector('.rocket-cooldown');
+                if (!cooldownBar) {
+                    cooldownBar = document.createElement('div');
+                    cooldownBar.className = 'rocket-cooldown';
+                    rocketSlot.appendChild(cooldownBar);
+                }
+            }
+        }
+
+        function updateRocketCooldownUI() {
+            const cooldownBar = document.querySelector('.rocket-cooldown');
+            if (!cooldownBar) return;
+            const elapsed = Date.now() - lastRocketTime;
+            const remaining = Math.max(0, 1 - elapsed / CONFIG.rocketCooldown);
+            cooldownBar.style.width = (remaining * 100) + '%';
+        }
+
+        function unlockWeapon(weapon) {
+            if (unlockedWeapons.includes(weapon)) return;
+            unlockedWeapons.push(weapon);
+
+            playWeaponUnlockSound();
+
+            // Show unlock announcement
+            const container = document.getElementById('weaponUnlockAnnouncement');
+            const textEl = container.querySelector('.unlock-text');
+            const weaponEl = container.querySelector('.unlock-weapon');
+            const hintEl = container.querySelector('.unlock-hint');
+
+            const weaponInfo = {
+                machinegun: { name: 'MACHINE GUN', icon: '\uD83D\uDD2B', key: '2' },
+                rocket: { name: 'ROCKET LAUNCHER', icon: '\uD83D\uDE80', key: '3' },
+                laser: { name: 'LASER CANNON', icon: '\u26A1', key: '4' }
+            };
+
+            const info = weaponInfo[weapon];
+            textEl.textContent = 'NEW WEAPON UNLOCKED!';
+            weaponEl.textContent = info.icon + ' ' + info.name;
+            hintEl.textContent = 'Press ' + info.key + ' to equip!';
+
+            // Force re-animation
+            container.style.display = 'none';
+            void container.offsetWidth;
+            container.style.display = 'block';
+
+            const newText = textEl.cloneNode(true);
+            const newWeapon = weaponEl.cloneNode(true);
+            const newHint = hintEl.cloneNode(true);
+            textEl.parentNode.replaceChild(newText, textEl);
+            weaponEl.parentNode.replaceChild(newWeapon, weaponEl);
+            hintEl.parentNode.replaceChild(newHint, hintEl);
+
+            if (weaponUnlockTimeout) clearTimeout(weaponUnlockTimeout);
+            weaponUnlockTimeout = setTimeout(() => {
+                container.style.display = 'none';
+            }, 3000);
+
+            updateWeaponSelectorUI();
+        }
+
+        function handleKeyDown(event) {
+            if (isGameOver) return;
+            switch (event.key) {
+                case '1':
+                    switchWeapon('hammer');
+                    break;
+                case '2':
+                    if (unlockedWeapons.includes('machinegun')) switchWeapon('machinegun');
+                    break;
+                case '3':
+                    if (unlockedWeapons.includes('rocket')) switchWeapon('rocket');
+                    break;
+                case '4':
+                    if (unlockedWeapons.includes('laser')) switchWeapon('laser');
+                    break;
+            }
+        }
+
+        // ========== POWER-UP SYSTEM ==========
+        const POWERUP_TYPES = {
+            FREEZE: {
+                name: 'FREEZE',
+                icon: '\u2744',  // snowflake
+                color: '#00BFFF',
+                bgColor: 'rgba(0, 191, 255, 0.3)',
+                borderColor: '#00BFFF'
+            },
+            BOMB: {
+                name: 'BOMB',
+                icon: '\uD83D\uDCA3',  // bomb
+                color: '#FF4444',
+                bgColor: 'rgba(255, 68, 68, 0.3)',
+                borderColor: '#FF4444'
+            },
+            DOUBLE: {
+                name: 'DOUBLE',
+                icon: '\u00D72',  // x2
+                color: '#FFD700',
+                bgColor: 'rgba(255, 215, 0, 0.3)',
+                borderColor: '#FFD700'
+            }
+        };
+
+        function spawnPowerUp() {
+            const currentTime = Date.now();
+            if (currentTime - lastPowerUpSpawn < powerUpSpawnCooldown) return;
+            if (powerUps.length >= 2) return; // Max 2 power-ups on screen
+
+            const types = Object.keys(POWERUP_TYPES);
+            const type = POWERUP_TYPES[types[Math.floor(Math.random() * types.length)]];
+            const x = 40 + Math.random() * (canvas.width - 80);
+            const y = canvas.height * 0.55 + Math.random() * (canvas.height * 0.35);
+
+            powerUps.push({
+                x: x,
+                y: y,
+                type: type,
+                spawnTime: currentTime,
+                lifetime: 6000, // 6 seconds to grab it
+                bobOffset: Math.random() * Math.PI * 2,
+                pulse: 0
+            });
+
+            lastPowerUpSpawn = currentTime;
+        }
+
+        function updatePowerUps() {
+            const currentTime = Date.now();
+
+            // Update active power-up timers
+            if (freezeActive && currentTime > freezeEndTime) {
+                freezeActive = false;
+            }
+            if (doublePointsActive && currentTime > doublePointsEndTime) {
+                doublePointsActive = false;
+            }
+
+            // Remove expired power-ups
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                if (currentTime - powerUps[i].spawnTime > powerUps[i].lifetime) {
+                    powerUps.splice(i, 1);
+                }
+            }
+
+            // Try to spawn new power-ups periodically
+            if (Math.random() < 0.005 && currentWave >= 2) {
+                spawnPowerUp();
+            }
+
+            // Update power-up status display
+            updatePowerUpStatusDisplay();
+        }
+
+        function updatePowerUpStatusDisplay() {
+            const container = document.getElementById('powerUpStatus');
+            let html = '';
+            if (freezeActive) {
+                const remaining = Math.ceil((freezeEndTime - Date.now()) / 1000);
+                html += `<span class="powerup-active" style="background:rgba(0,191,255,0.3);color:#00BFFF;border:2px solid #00BFFF;">\u2744 FROZEN ${remaining}s</span>`;
+            }
+            if (doublePointsActive) {
+                const remaining = Math.ceil((doublePointsEndTime - Date.now()) / 1000);
+                html += `<span class="powerup-active" style="background:rgba(255,215,0,0.3);color:#FFD700;border:2px solid #FFD700;">\u00D72 DOUBLE ${remaining}s</span>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function drawPowerUps() {
+            const currentTime = Date.now();
+            powerUps.forEach(pu => {
+                const elapsed = currentTime - pu.spawnTime;
+                const remaining = pu.lifetime - elapsed;
+                const bobY = Math.sin(currentTime / 300 + pu.bobOffset) * 5;
+                const pulse = 1 + Math.sin(currentTime / 200) * 0.1;
+
+                ctx.save();
+
+                // Flash when about to expire
+                if (remaining < 2000) {
+                    ctx.globalAlpha = 0.5 + Math.sin(currentTime / 100) * 0.5;
+                }
+
+                const size = CONFIG.powerUpSize * pulse;
+
+                // Glow effect
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = pu.type.color;
+
+                // Background circle
+                ctx.fillStyle = pu.type.bgColor;
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y + bobY, size * 0.7, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Border
+                ctx.strokeStyle = pu.type.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Icon
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = pu.type.color;
+                ctx.font = `bold ${size * 0.6}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(pu.type.icon, pu.x, pu.y + bobY);
+
+                ctx.restore();
+            });
+        }
+
+        function checkPowerUpCollision() {
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const pu = powerUps[i];
+                const dx = mouseX - pu.x;
+                const dy = mouseY - pu.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < CONFIG.powerUpSize) {
+                    activatePowerUp(pu.type);
+                    // Spawn grab particles
+                    spawnParticles(pu.x, pu.y, pu.type.color, 8, false);
+                    spawnFloatingText(pu.x, pu.y - 20, pu.type.name + '!', pu.type.color, 28);
+                    powerUps.splice(i, 1);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function activatePowerUp(type) {
+            const currentTime = Date.now();
+            switch (type.name) {
+                case 'FREEZE':
+                    freezeActive = true;
+                    freezeEndTime = currentTime + CONFIG.freezeDuration;
+                    playFreezeSound();
+                    break;
+                case 'BOMB':
+                    // Kill all live chickens on screen (force kill regardless of HP)
+                    playBombSound();
+                    triggerShake(12);
+                    let bombKills = 0;
+                    chickens.forEach(chicken => {
+                        if (!chicken.isDead) {
+                            chicken.hp = 0;
+                            chicken.isDead = true;
+                            chicken.deathTime = currentTime;
+                            chicken.image = chicken.deadImage || chickenDeadImage;
+                            bombKills++;
+                            totalChickensHit++;
+                            // Particles for each kill
+                            const cx = chicken.x + CONFIG.chickenWidth / 2;
+                            const cy = chicken.y + CONFIG.chickenHeight / 2;
+                            spawnParticles(cx, cy, '#FF4444', 6, false);
+                        }
+                    });
+                    score += bombKills * multiplier;
+                    if (bombKills > 0) {
+                        spawnFloatingText(canvas.width / 2, canvas.height / 2, 'BOOM! +' + (bombKills * multiplier), '#FF4444', 36);
+                    }
+                    updateScore();
+                    break;
+                case 'DOUBLE':
+                    doublePointsActive = true;
+                    doublePointsEndTime = currentTime + CONFIG.doublePointsDuration;
+                    playPowerUpSound();
+                    break;
+            }
+        }
+
+        // ========== WAVE SYSTEM ==========
+        function updateWaveSystem() {
+            const elapsed = Date.now() - startTime;
+            const newWave = Math.floor(elapsed / CONFIG.waveInterval) + 1;
+            if (newWave > currentWave) {
+                currentWave = newWave;
+                announceWave(currentWave);
+                applyWaveDifficulty();
+            }
+            document.getElementById('waveDisplay').innerText = 'Wave ' + currentWave;
+
+            // At wave 4, switch to medium action music (crab + machine gun intro)
+            if (currentWave > 3 && backgroundMusicStarted && !mediumMusicTriggered) {
+                mediumMusicTriggered = true;
+                backgroundMusic.pause();
+                const playPromise = actionMusicMedium.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        backgroundMusic.playbackRate = 1.15;
+                        backgroundMusic.play();
+                    });
+                }
+            }
+
+            // At wave 6, switch to intense action music (hornet + rocket launcher intro)
+            if (currentWave > 5 && backgroundMusicStarted && !intenseMusicTriggered) {
+                intenseMusicTriggered = true;
+                actionMusicMedium.pause();
+                backgroundMusic.pause();
+                const playPromise = actionMusicIntense.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        backgroundMusic.playbackRate = 1.35;
+                        backgroundMusic.play();
+                    });
+                }
+            }
+
+            // At wave 8, switch to epic action music (dragon + laser cannon intro)
+            if (currentWave > 7 && backgroundMusicStarted && !epicMusicTriggered) {
+                epicMusicTriggered = true;
+                actionMusicIntense.pause();
+                actionMusicMedium.pause();
+                backgroundMusic.pause();
+                const playPromise = actionMusicEpic.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        backgroundMusic.playbackRate = 1.5;
+                        backgroundMusic.play();
+                    });
+                }
+            }
+        }
+
+        function announceWave(wave) {
+            playWaveSound();
+            const container = document.getElementById('waveAnnouncement');
+            const textEl = container.querySelector('.wave-text');
+            const subEl = container.querySelector('.wave-subtitle');
+
+            const waveNames = [
+                '', 'The Flock Arrives', 'Clucking Chaos', 'Feather Storm',
+                'Crab Invasion', 'Pincer Panic', 'Hornet Swarm',
+                'Sting Operation', 'Dragon Awakening', 'Fire & Fury',
+                'Dragon Storm', 'Inferno Unleashed', 'Final Cluck'
+            ];
+
+            textEl.textContent = 'WAVE ' + wave;
+            subEl.textContent = waveNames[Math.min(wave, waveNames.length - 1)] || 'Endless Chaos';
+
+            // Force re-animation
+            container.style.display = 'none';
+            void container.offsetWidth;
+            container.style.display = 'block';
+
+            // Reset animation by cloning
+            const newText = textEl.cloneNode(true);
+            const newSub = subEl.cloneNode(true);
+            textEl.parentNode.replaceChild(newText, textEl);
+            subEl.parentNode.replaceChild(newSub, subEl);
+
+            if (waveAnnouncementTimeout) clearTimeout(waveAnnouncementTimeout);
+            waveAnnouncementTimeout = setTimeout(() => {
+                container.style.display = 'none';
+            }, 2000);
+        }
+
+        function applyWaveDifficulty() {
+            // Each wave speeds things up
+            const waveFactor = currentWave - 1;
+            spawnInterval = Math.max(CONFIG.baseSpawnInterval - waveFactor * 80, CONFIG.minSpawnInterval);
+            chickenSpeed = Math.min(CONFIG.baseChickenSpeed + waveFactor * 0.4, CONFIG.maxChickenSpeed);
+
+            // Check weapon unlocks
+            if (currentWave >= CONFIG.machineGunUnlockWave) {
+                unlockWeapon('machinegun');
+            }
+            if (currentWave >= CONFIG.rocketUnlockWave) {
+                unlockWeapon('rocket');
+            }
+            if (currentWave >= CONFIG.laserUnlockWave) {
+                unlockWeapon('laser');
+            }
+        }
+
+        // ========== GOLDEN CHICKEN ==========
+        function createGoldenChicken(chicken) {
+            chicken.isGolden = true;
+            // Golden chickens are faster
+            chicken.dx *= 1.5;
+            chicken.dy *= 1.3;
+            return chicken;
+        }
+
+        function drawGoldenGlow(chicken) {
+            if (!chicken.isGolden || chicken.isDead) return;
+            ctx.save();
+            const cx = chicken.x + CONFIG.chickenWidth / 2;
+            const cy = chicken.y + CONFIG.chickenHeight / 2;
+            const pulse = 1 + Math.sin(Date.now() / 150) * 0.3;
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, CONFIG.chickenWidth * pulse);
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
+            gradient.addColorStop(0.5, 'rgba(255, 215, 0, 0.15)');
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(cx, cy, CONFIG.chickenWidth * pulse, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawGoldenTint(chicken) {
+            // Draw golden overlay on the chicken
+            ctx.save();
+            ctx.globalAlpha = 0.35 + Math.sin(Date.now() / 200) * 0.15;
+            ctx.globalCompositeOperation = 'source-atop';
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(chicken.x, chicken.y, CONFIG.chickenWidth, CONFIG.chickenHeight);
+            ctx.restore();
+        }
+
+        // ========== COMBO SYSTEM VISUALS ==========
+        function getComboColor(mult) {
+            if (mult >= 10) return '#FF0000';      // Red fire
+            if (mult >= 7) return '#FF4500';        // Orange red
+            if (mult >= 5) return '#FF8C00';        // Dark orange
+            if (mult >= 3) return '#FFD700';        // Gold
+            return '#00BFFF';                        // Blue
+        }
+
+        function getComboLabel(mult) {
+            if (mult >= 15) return 'LEGENDARY!';
+            if (mult >= 10) return 'ON FIRE!';
+            if (mult >= 7) return 'UNSTOPPABLE!';
+            if (mult >= 5) return 'AMAZING!';
+            if (mult >= 3) return 'GREAT!';
+            return '';
+        }
+
+        // ========== DANGER BAR ==========
+        function updateDangerBar() {
+            const liveChickens = chickens.filter(c => !c.isDead).length;
+            const percentage = Math.min((liveChickens / CONFIG.maxChickens) * 100, 100);
+            const bar = document.getElementById('dangerBar');
+            bar.style.width = percentage + '%';
+
+            // Pulse the bar when danger is high
+            if (percentage > 70) {
+                bar.style.animation = 'none';
+                bar.style.background = `linear-gradient(90deg, #ff0000, #ff4444)`;
+                document.getElementById('dangerBarContainer').style.borderColor =
+                    Math.sin(Date.now() / 100) > 0 ? '#ff0000' : '#fff';
+            } else {
+                bar.style.background = 'linear-gradient(90deg, #00ff00, #ffff00, #ff0000)';
+                document.getElementById('dangerBarContainer').style.borderColor = '#fff';
+            }
+        }
+
+        // ========== FREEZE VISUAL OVERLAY ==========
+        function drawFreezeOverlay() {
+            if (!freezeActive) return;
+            ctx.save();
+            ctx.fillStyle = 'rgba(100, 200, 255, 0.08)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw some snowflake particles
+            const t = Date.now();
+            ctx.fillStyle = 'rgba(200, 230, 255, 0.4)';
+            for (let i = 0; i < 15; i++) {
+                const x = ((t / 20 + i * 97) % canvas.width);
+                const y = ((t / (15 + i * 3) + i * 53) % canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillText('\u2744', x, y);
+            }
+            ctx.restore();
+        }
+
+        // ========== MAIN GAME FUNCTIONS ==========
+
+        function init() {
+            loadHighScore();
+
+            // Start screen
+            document.getElementById('startButton').addEventListener('click', startGame);
+            document.getElementById('restartButton').addEventListener('click', restartGame);
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            canvas.style.cursor = 'none';
+
+            // Wait for images to load
+            let imagesLoaded = 0;
+            const totalImages = 4;
+            function imageLoaded() {
+                imagesLoaded++;
+                if (imagesLoaded === totalImages) {
+                    beginGame();
+                }
+            }
+
+            // Check if images are already loaded (cached)
+            [chickenImage, chickenDeadImage, hammerOffImage, hammerOnImage].forEach(img => {
+                if (img.complete) {
+                    imageLoaded();
+                } else {
+                    img.onload = imageLoaded;
+                }
+            });
+        }
+
+        function beginGame() {
+            startTime = Date.now();
+            lastPowerUpSpawn = Date.now();
+            lastWaveTime = Date.now();
+            currentWave = 1;
+
+            // Show weapon bar and wave 1 announcement
+            document.getElementById('weaponBar').style.display = 'flex';
+            setTimeout(() => announceWave(1), 500);
+
+            spawnChicken();
+            canvas.addEventListener('mousedown', hammerDown);
+            canvas.addEventListener('mouseup', hammerUp);
+            canvas.addEventListener('mousemove', updateMousePosition);
+            canvas.addEventListener('touchstart', hammerDown);
+            canvas.addEventListener('touchend', hammerUp);
+            canvas.addEventListener('touchmove', updateTouchPosition);
+            document.addEventListener('keydown', handleKeyDown);
+
+            lastFrameTime = Date.now();
+            update();
+        }
+
+        let lastFrameTime = 0;
+
+        // Determine enemy type based on current wave
+        function getEnemyType() {
+            if (currentWave >= 8) {
+                // Wave 8+: only dragons
+                return 'dragon';
+            } else if (currentWave >= 6) {
+                // Wave 6-7: only hornets
+                return 'hornet';
+            } else if (currentWave >= 4) {
+                // Wave 4-5: only crabs
+                return 'crab';
+            }
+            return 'chicken';
+        }
+
+        function getEnemyAssets(type) {
+            switch (type) {
+                case 'crab':
+                    return { image: crabImage, deadImage: crabDeadImage, hp: 1 };
+                case 'hornet':
+                    return { image: hornetImage, deadImage: hornetDeadImage, hp: 2 };
+                case 'dragon':
+                    return { image: dragonImage, deadImage: dragonDeadImage, hp: 4 };
+                default:
+                    return { image: chickenImage, deadImage: chickenDeadImage, hp: 1 };
+            }
+        }
+
+        // Spawn enemies at random positions
+        function spawnChicken() {
+            if (isGameOver) return;
+            const liveChickens = chickens.filter(c => !c.isDead).length;
+            if (liveChickens < CONFIG.maxChickens) {
+                const x = Math.random() * (canvas.width - CONFIG.chickenWidth);
+                const y = Math.random() * ((canvas.height - CONFIG.chickenHeight) / 2) + (canvas.height / 2);
+                const directionX = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * chickenSpeed + 1);
+                const directionY = -((Math.random() * chickenSpeed) + 1);
+
+                const enemyType = getEnemyType();
+                const assets = getEnemyAssets(enemyType);
+
+                const chicken = {
+                    x: x,
+                    y: y,
+                    dx: directionX,
+                    dy: directionY,
+                    isDead: false,
+                    deathTime: 0,
+                    image: assets.image,
+                    deadImage: assets.deadImage,
+                    opacity: 1.0,
+                    multiplierText: null,
+                    textOpacity: 1.0,
+                    isGolden: false,
+                    entryScale: 0,  // For spawn animation
+                    enemyType: enemyType,
+                    hp: assets.hp,
+                    maxHp: assets.hp
+                };
+
+                // Hornets move a bit faster
+                if (enemyType === 'hornet') {
+                    chicken.dx *= 1.3;
+                    chicken.dy *= 1.2;
+                }
+
+                // Dragons are big and menacing, slightly slower but tanky
+                if (enemyType === 'dragon') {
+                    chicken.dx *= 0.9;
+                    chicken.dy *= 0.85;
+                }
+
+                // Chance for golden chicken (only regular chickens)
+                if (enemyType === 'chicken' && Math.random() < CONFIG.goldenChickenChance) {
+                    createGoldenChicken(chicken);
+                }
+
+                chickens.push(chicken);
+            } else {
+                endGame();
+                return;
+            }
+            spawnTimeoutId = setTimeout(spawnChicken, spawnInterval);
+        }
+
+        // Main game update loop
+        function update() {
+            if (isGameOver) return;
+
+            const now = Date.now();
+            const dt = now - lastFrameTime;
+            lastFrameTime = now;
+
+            clearCanvas();
+
+            // Apply screen shake
+            updateShake(dt);
+            ctx.save();
+            ctx.translate(shakeOffsetX, shakeOffsetY);
+
+            updateWaveSystem();
+            updatePowerUps();
+            moveChickens();
+            updateBullets();
+            updateRockets();
+            updateExplosions();
+            drawPowerUps();
+            drawChickens();
+            drawBullets();
+            drawRockets();
+            drawLaserBeam();
+            drawExplosions();
+            drawParticles();
+            updateParticles();
+            drawFloatingTexts();
+            updateFloatingTexts();
+            drawFreezeOverlay();
+            drawComboMeter();
+            drawHammer();
+            updateRocketCooldownUI();
+
+            ctx.restore();
+
+            updateDangerBar();
+
+            requestAnimationFrame(update);
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Move chickens
+        function moveChickens() {
+            const currentTime = Date.now();
+            for (let i = chickens.length - 1; i >= 0; i--) {
+                const chicken = chickens[i];
+
+                // Spawn animation
+                if (chicken.entryScale < 1) {
+                    chicken.entryScale = Math.min(chicken.entryScale + 0.05, 1);
+                }
+
+                if (chicken.isDead) {
+                    const elapsed = currentTime - chicken.deathTime;
+                    chicken.opacity = 1 - (elapsed / 1000);
+                    chicken.textOpacity = chicken.opacity;
+                    if (chicken.opacity <= 0) {
+                        chickens.splice(i, 1);
+                    }
+                    continue;
+                }
+
+                // Don't move if frozen
+                if (freezeActive) continue;
+
+                chicken.x += chicken.dx;
+                chicken.y += chicken.dy;
+
+                // Bounce off left and right walls
+                if (chicken.x <= 0) {
+                    chicken.x = 0;
+                    chicken.dx *= -1;
+                } else if (chicken.x + CONFIG.chickenWidth >= canvas.width) {
+                    chicken.x = canvas.width - CONFIG.chickenWidth;
+                    chicken.dx *= -1;
+                }
+
+                // Bounce off floor
+                if (chicken.y + CONFIG.chickenHeight >= canvas.height) {
+                    chicken.y = canvas.height - CONFIG.chickenHeight;
+                    chicken.dy *= -1;
+                }
+
+                // Bounce off ceiling (middle of the canvas)
+                if (chicken.y <= canvas.height / 2) {
+                    chicken.y = canvas.height / 2;
+                    chicken.dy *= -1;
+                }
+            }
+
+            // Check for game over condition
+            const liveCount = chickens.filter(c => !c.isDead).length;
+            if (liveCount >= CONFIG.maxChickens) {
+                endGame();
+            }
+        }
+
+        // Draw chickens
+        function drawChickens() {
+            chickens.forEach(chicken => {
+                // Draw golden glow first (behind chicken)
+                if (chicken.isGolden && !chicken.isDead) {
+                    drawGoldenGlow(chicken);
+                }
+
+                ctx.save();
+                ctx.globalAlpha = chicken.opacity;
+
+                const scale = chicken.entryScale;
+                const cw = CONFIG.chickenWidth * scale;
+                const ch = CONFIG.chickenHeight * scale;
+                const offsetX = (CONFIG.chickenWidth - cw) / 2;
+                const offsetY = (CONFIG.chickenHeight - ch) / 2;
+
+                if (chicken.isGolden && !chicken.isDead) {
+                    // Golden tint: draw with color overlay
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#FFD700';
+                }
+
+                // Draw frozen indicator
+                if (freezeActive && !chicken.isDead) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#00BFFF';
+                }
+
+                // Damage flash for enemies that took a hit but aren't dead
+                if (chicken.damageFlash && !chicken.isDead) {
+                    const flashElapsed = Date.now() - chicken.damageFlash;
+                    if (flashElapsed < 200) {
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#FF0000';
+                        ctx.globalAlpha = 0.6 + Math.sin(flashElapsed / 30) * 0.4;
+                    }
+                }
+
+                if (chicken.dx > 0) {
+                    ctx.translate(chicken.x + offsetX + cw / 2, chicken.y + offsetY);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(chicken.image, -cw / 2, 0, cw, ch);
+                } else {
+                    ctx.translate(chicken.x + offsetX, chicken.y + offsetY);
+                    ctx.drawImage(chicken.image, 0, 0, cw, ch);
+                }
+
+                ctx.restore();
+
+                // Draw HP bar for enemies with more than 1 max HP that have taken damage
+                if (!chicken.isDead && chicken.maxHp > 1 && chicken.hp < chicken.maxHp) {
+                    ctx.save();
+                    const barWidth = CONFIG.chickenWidth * 0.7;
+                    const barHeight = 4;
+                    const barX = chicken.x + (CONFIG.chickenWidth - barWidth) / 2;
+                    const barY = chicken.y - 8;
+                    // Background
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(barX, barY, barWidth, barHeight);
+                    // HP fill
+                    const hpRatio = chicken.hp / chicken.maxHp;
+                    ctx.fillStyle = hpRatio > 0.5 ? '#44FF44' : '#FF4444';
+                    ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+                    ctx.restore();
+                }
+
+                // Draw golden crown/star indicator
+                if (chicken.isGolden && !chicken.isDead) {
+                    ctx.save();
+                    ctx.font = '18px Arial';
+                    ctx.textAlign = 'center';
+                    const starY = chicken.y - 5 + Math.sin(Date.now() / 200) * 3;
+                    ctx.fillText('\u2B50', chicken.x + CONFIG.chickenWidth / 2, starY);
+                    ctx.restore();
+                }
+
+                // Draw multiplier text over dead chickens
+                if (chicken.isDead && chicken.multiplierText && chicken.textOpacity > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = chicken.textOpacity;
+                    ctx.fillStyle = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
+                    ctx.font = `bold ${CONFIG.chickenHeight * 0.5}px Arial Black, Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = '#000';
+                    const textX = chicken.x + CONFIG.chickenWidth / 2;
+                    const textY = chicken.y + CONFIG.chickenHeight / 2 - CONFIG.chickenHeight * 0.5;
+                    ctx.fillText(chicken.multiplierText, textX, textY);
+                    ctx.restore();
+                }
+            });
+        }
+
+        // Draw combo meter in top-right area
+        function drawComboMeter() {
+            if (multiplier < 2) return;
+            const currentTime = Date.now();
+            const timeSinceHit = currentTime - lastHitTime;
+            const comboRemaining = Math.max(0, 1 - timeSinceHit / CONFIG.comboTimeLimit);
+
+            if (comboRemaining <= 0) return;
+
+            const x = canvas.width - 120;
+            const y = 60;
+            const barWidth = 100;
+            const barHeight = 8;
+
+            // Combo text
+            ctx.save();
+            const comboColor = getComboColor(multiplier);
+            const comboSize = Math.min(20 + multiplier * 2, 40);
+            ctx.font = `bold ${comboSize}px Arial Black, Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = comboColor;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = comboColor;
+
+            // Pulsing effect
+            const pulse = 1 + Math.sin(currentTime / 100) * 0.05 * multiplier;
+            ctx.translate(x + barWidth / 2, y);
+            ctx.scale(pulse, pulse);
+            ctx.fillText('x' + multiplier, 0, 0);
+
+            // Combo label
+            const label = getComboLabel(multiplier);
+            if (label) {
+                ctx.font = 'bold 14px Arial';
+                ctx.fillStyle = comboColor;
+                ctx.fillText(label, 0, 18);
+            }
+
+            ctx.restore();
+
+            // Timer bar
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(x, y + 22, barWidth, barHeight);
+            ctx.fillStyle = comboColor;
+            ctx.fillRect(x, y + 22, barWidth * comboRemaining, barHeight);
+            ctx.restore();
+        }
+
+        // Draw weapon cursor
+        function drawHammer() {
+            if (currentWeapon === 'hammer') {
+                const hammerX = mouseX - CONFIG.hammerWidth / 2;
+                const hammerY = mouseY - CONFIG.hammerHeight / 2;
+                ctx.drawImage(hammerImage, hammerX, hammerY, CONFIG.hammerWidth, CONFIG.hammerHeight);
+            } else if (currentWeapon === 'machinegun') {
+                // Draw crosshair
+                const size = 40;
+                if (crosshairImage.complete && crosshairImage.naturalWidth > 0) {
+                    ctx.drawImage(crosshairImage, mouseX - size / 2, mouseY - size / 2, size, size);
+                } else {
+                    // Fallback: draw crosshair with canvas
+                    ctx.save();
+                    ctx.strokeStyle = '#ff3333';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(mouseX, mouseY, 15, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(mouseX, mouseY - 20);
+                    ctx.lineTo(mouseX, mouseY - 8);
+                    ctx.moveTo(mouseX, mouseY + 8);
+                    ctx.lineTo(mouseX, mouseY + 20);
+                    ctx.moveTo(mouseX - 20, mouseY);
+                    ctx.lineTo(mouseX - 8, mouseY);
+                    ctx.moveTo(mouseX + 8, mouseY);
+                    ctx.lineTo(mouseX + 20, mouseY);
+                    ctx.stroke();
+                    ctx.fillStyle = '#ff3333';
+                    ctx.beginPath();
+                    ctx.arc(mouseX, mouseY, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                // Draw firing line indicator from bottom center to cursor
+                if (isMouseDown) {
+                    ctx.save();
+                    ctx.setLineDash([5, 8]);
+                    ctx.strokeStyle = 'rgba(255, 220, 60, 0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 2, canvas.height - 10);
+                    ctx.lineTo(mouseX, mouseY);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            } else if (currentWeapon === 'rocket') {
+                // Draw target reticle
+                const size = 50;
+                if (rocketTargetImage.complete && rocketTargetImage.naturalWidth > 0) {
+                    ctx.save();
+                    // Pulse effect
+                    const pulse = 1 + Math.sin(Date.now() / 200) * 0.05;
+                    ctx.translate(mouseX, mouseY);
+                    ctx.scale(pulse, pulse);
+                    ctx.drawImage(rocketTargetImage, -size / 2, -size / 2, size, size);
+                    ctx.restore();
+                } else {
+                    // Fallback: draw target with canvas
+                    ctx.save();
+                    const pulse = 1 + Math.sin(Date.now() / 200) * 0.05;
+                    ctx.translate(mouseX, mouseY);
+                    ctx.scale(pulse, pulse);
+                    ctx.strokeStyle = '#ff8800';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fillStyle = '#ff4400';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                // Show cooldown status
+                const elapsed = Date.now() - lastRocketTime;
+                if (elapsed < CONFIG.rocketCooldown) {
+                    const progress = elapsed / CONFIG.rocketCooldown;
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(255, 68, 0, 0.5)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(mouseX, mouseY, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            } else if (currentWeapon === 'laser') {
+                // Draw laser targeting reticle
+                const pulse = 1 + Math.sin(Date.now() / 100) * 0.1;
+                ctx.save();
+                ctx.translate(mouseX, mouseY);
+                ctx.scale(pulse, pulse);
+                // Outer diamond
+                ctx.strokeStyle = '#00FFFF';
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00FFFF';
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(18, 0);
+                ctx.lineTo(0, 18);
+                ctx.lineTo(-18, 0);
+                ctx.closePath();
+                ctx.stroke();
+                // Inner crosshair
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(0, -4);
+                ctx.moveTo(0, 4);
+                ctx.lineTo(0, 10);
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(-4, 0);
+                ctx.moveTo(4, 0);
+                ctx.lineTo(10, 0);
+                ctx.stroke();
+                // Center dot
+                ctx.fillStyle = '#00FFFF';
+                ctx.beginPath();
+                ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                // Aim line when firing
+                if (isMouseDown) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 6]);
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 2, canvas.height - 10);
+                    ctx.lineTo(mouseX, mouseY);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        }
+
+        // Handle weapon input
+        function hammerDown(event) {
+            ensureAudioCtx();
+            if (!backgroundMusicStarted) {
+                backgroundMusic.play();
+                backgroundMusicStarted = true;
+            }
+            if (isGameOver) return;
+            isMouseDown = true;
+
+            // Check power-up collision first (works for all weapons)
+            const gotPowerUp = checkPowerUpCollision();
+            if (gotPowerUp) {
+                event.preventDefault();
+                return;
+            }
+
+            if (currentWeapon === 'hammer') {
+                hammerImage = hammerOnImage;
+                const hit = checkHit();
+                if (!hit) {
+                    missSound.currentTime = 0;
+                    missSound.play();
+                    multiplier = 1;
+                }
+            } else if (currentWeapon === 'machinegun') {
+                // Fire immediately and start auto-fire
+                fireBullet();
+                if (autoFireInterval) clearInterval(autoFireInterval);
+                autoFireInterval = setInterval(() => {
+                    if (isMouseDown && currentWeapon === 'machinegun' && !isGameOver) {
+                        fireBullet();
+                    } else {
+                        clearInterval(autoFireInterval);
+                        autoFireInterval = null;
+                    }
+                }, CONFIG.machineGunFireRate);
+            } else if (currentWeapon === 'rocket') {
+                fireRocket();
+            } else if (currentWeapon === 'laser') {
+                // Fire immediately and start auto-fire
+                fireLaser();
+                if (autoFireInterval) clearInterval(autoFireInterval);
+                autoFireInterval = setInterval(() => {
+                    if (isMouseDown && currentWeapon === 'laser' && !isGameOver) {
+                        fireLaser();
+                    } else {
+                        clearInterval(autoFireInterval);
+                        autoFireInterval = null;
+                    }
+                }, CONFIG.laserFireRate);
+            }
+
+            event.preventDefault();
+        }
+
+        function hammerUp(event) {
+            isMouseDown = false;
+            if (currentWeapon === 'hammer') {
+                hammerImage = hammerOffImage;
+            }
+            // Stop machine gun auto-fire
+            if (autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
+            }
+            event.preventDefault();
+        }
+
+        function updateMousePosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = event.clientX - rect.left;
+            mouseY = event.clientY - rect.top;
+        }
+
+        function updateTouchPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = event.touches[0].clientX - rect.left;
+            mouseY = event.touches[0].clientY - rect.top;
+            event.preventDefault();
+        }
+
+        // Check for hitting chickens
+        function checkHit() {
+            const currentTime = Date.now();
+            for (let i = 0; i < chickens.length; i++) {
+                const chicken = chickens[i];
+                if (!chicken.isDead &&
+                    mouseX >= chicken.x &&
+                    mouseX <= chicken.x + CONFIG.chickenWidth &&
+                    mouseY >= chicken.y &&
+                    mouseY <= chicken.y + CONFIG.chickenHeight
+                ) {
+                    // Hammer deals 1 damage — check HP
+                    chicken.hp = (chicken.hp || 1) - 1;
+                    if (chicken.hp > 0) {
+                        // Not dead yet — show damage feedback
+                        hitSound.currentTime = 0;
+                        hitSound.play();
+                        const cx = chicken.x + CONFIG.chickenWidth / 2;
+                        const cy = chicken.y + CONFIG.chickenHeight / 2;
+                        spawnParticles(cx, cy, '#FFAA00', 3, false);
+                        spawnFloatingText(cx, cy - 20, 'HIT!', '#FFAA00', 16);
+                        chicken.damageFlash = currentTime;
+                        return true;
+                    }
+
+                    // Play appropriate sound
+                    if (chicken.isGolden) {
+                        playGoldenHitSound();
+                    }
+                    hitSound.currentTime = 0;
+                    hitSound.play();
+
+                    // Change chicken to dead state
+                    chicken.isDead = true;
+                    chicken.deathTime = currentTime;
+                    chicken.image = chicken.deadImage || chickenDeadImage;
+                    totalChickensHit++;
+
+                    // Update combo multiplier
+                    if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
+                        multiplier++;
+                    } else {
+                        multiplier = 1;
+                    }
+                    lastHitTime = currentTime;
+
+                    // Calculate points
+                    let points = multiplier;
+                    if (chicken.isGolden) points *= 10;
+                    if (doublePointsActive) points *= 2;
+
+                    score += points;
+                    updateScore();
+
+                    // Visual feedback
+                    const cx = chicken.x + CONFIG.chickenWidth / 2;
+                    const cy = chicken.y + CONFIG.chickenHeight / 2;
+
+                    // Particles - feathers!
+                    const featherColors = chicken.isGolden
+                        ? ['#FFD700', '#FFA500', '#FFEC8B', '#FFE4B5']
+                        : ['#FFFFFF', '#F5DEB3', '#DEB887', '#CD853F'];
+                    featherColors.forEach(color => {
+                        spawnParticles(cx, cy, color, 3, chicken.isGolden);
+                    });
+
+                    // Floating score text
+                    let scoreText = '+' + points;
+                    const textColor = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
+                    const textSize = chicken.isGolden ? 32 : (20 + Math.min(multiplier * 2, 16));
+                    spawnFloatingText(cx, cy - 20, scoreText, textColor, textSize);
+
+                    // Multiplier text on chicken
+                    if (multiplier >= 2) {
+                        chicken.multiplierText = 'x' + multiplier;
+                    }
+                    if (chicken.isGolden) {
+                        chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
+                    }
+
+                    // Screen shake on big combos
+                    if (multiplier >= 5) {
+                        triggerShake(multiplier);
+                    }
+
+                    // Extra particles at high combos
+                    if (multiplier >= 8) {
+                        spawnParticles(cx, cy, getComboColor(multiplier), 8, true);
+                    }
+
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Update the score display
+        function updateScore() {
+            let display = 'Score: ' + score;
+            if (multiplier > 1) display += ' (x' + multiplier + ')';
+            if (doublePointsActive) display += ' [2x ACTIVE]';
+            document.getElementById('score').innerText = display;
+        }
+
+        // End the game
+        function endGame() {
+            isGameOver = true;
+
+            // Cancel any pending spawn
+            if (spawnTimeoutId) {
+                clearTimeout(spawnTimeoutId);
+                spawnTimeoutId = null;
+            }
+
+            const isNewHighScore = saveHighScore();
+
+            document.getElementById('gameOverOverlay').classList.add('show');
+            document.getElementById('finalScoreText').innerText = 'Score: ' + score;
+            document.getElementById('finalWaveText').innerText = 'Wave ' + currentWave + ' | Enemies Hit: ' + totalChickensHit;
+
+            if (isNewHighScore) {
+                document.getElementById('newHighScore').style.display = 'block';
+            } else {
+                document.getElementById('newHighScore').style.display = 'none';
+            }
+
+            // Stop auto-fire
+            if (autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
+            }
+
+            // Remove event listeners
+            canvas.removeEventListener('mousedown', hammerDown);
+            canvas.removeEventListener('mouseup', hammerUp);
+            canvas.removeEventListener('mousemove', updateMousePosition);
+            canvas.removeEventListener('touchstart', hammerDown);
+            canvas.removeEventListener('touchend', hammerUp);
+            canvas.removeEventListener('touchmove', updateTouchPosition);
+            document.removeEventListener('keydown', handleKeyDown);
+
+            document.getElementById('weaponBar').style.display = 'none';
+            backgroundMusic.pause();
+            actionMusicMedium.pause();
+            actionMusicIntense.pause();
+            actionMusicEpic.pause();
+            canvas.style.cursor = 'default';
+        }
+
+        // Restart the game
+        function restartGame() {
+            score = 0;
+            multiplier = 1;
+            lastHitTime = 0;
+            chickens = [];
+            particles = [];
+            floatingTexts = [];
+            powerUps = [];
+            spawnInterval = CONFIG.baseSpawnInterval;
+            chickenSpeed = CONFIG.baseChickenSpeed;
+            gameTime = 0;
+            isGameOver = false;
+            currentWave = 1;
+            totalChickensHit = 0;
+            freezeActive = false;
+            doublePointsActive = false;
+            shakeTime = 0;
+            shakeOffsetX = 0;
+            shakeOffsetY = 0;
+
+            // Reset weapon state
+            currentWeapon = 'hammer';
+            unlockedWeapons = ['hammer'];
+            bullets = [];
+            rockets = [];
+            explosions = [];
+            lastFireTime = 0;
+            lastRocketTime = 0;
+            lastLaserFireTime = 0;
+            laserBeam = null;
+            laserHitTarget = null;
+            bulletsMissedConsecutive = 0;
+            if (autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
+            }
+            hammerImage = hammerOffImage;
+
+            document.getElementById('gameOverOverlay').classList.remove('show');
+
+            // Reset weapon selector UI
+            document.querySelectorAll('.weapon-slot').forEach(slot => {
+                const weapon = slot.dataset.weapon;
+                slot.classList.remove('active');
+                if (weapon === 'hammer') {
+                    slot.classList.add('active');
+                } else {
+                    slot.classList.add('locked');
+                    const lock = slot.querySelector('.lock-overlay');
+                    if (lock) lock.style.display = '';
+                }
+            });
+            document.getElementById('powerUpStatus').innerHTML = '';
+            updateScore();
+            loadHighScore();
+
+            startTime = Date.now();
+            lastPowerUpSpawn = Date.now();
+            lastWaveTime = Date.now();
+
+            backgroundMusic.currentTime = 0;
+            backgroundMusic.playbackRate = 1.0;
+            backgroundMusicStarted = false;
+            actionMusicMedium.pause();
+            actionMusicMedium.currentTime = 0;
+            mediumMusicTriggered = false;
+            actionMusicIntense.pause();
+            actionMusicIntense.currentTime = 0;
+            intenseMusicTriggered = false;
+            actionMusicEpic.pause();
+            actionMusicEpic.currentTime = 0;
+            epicMusicTriggered = false;
+
+            canvas.addEventListener('mousedown', hammerDown);
+            canvas.addEventListener('mouseup', hammerUp);
+            canvas.addEventListener('mousemove', updateMousePosition);
+            canvas.addEventListener('touchstart', hammerDown);
+            canvas.addEventListener('touchend', hammerUp);
+            canvas.addEventListener('touchmove', updateTouchPosition);
+            document.addEventListener('keydown', handleKeyDown);
+
+            document.getElementById('weaponBar').style.display = 'flex';
+            setTimeout(() => announceWave(1), 500);
+            spawnChicken();
+            lastFrameTime = Date.now();
+            update();
+            canvas.style.cursor = 'none';
+        }
+
+        // Start everything
+        init();
+    </script>
+</body>
+</html>

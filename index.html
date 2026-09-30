@@ -1,23 +1,31 @@
 <!-- made by Abdullah Hamdi , September 14 , 2024 // with the help of open AI o1-preview model -->
 <!-- Enhanced with exciting features: Feb 2026 -->
+<!-- 3D edition (three.js + Blender generated models): Sep 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Hammer the Chickens Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Hammer the Chickens 3D</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
+        html, body {
+            width: 100%;
+            height: 100%;
             margin: 0;
             overflow: hidden;
-            background: #000;
+            background: #87CEEB;
+            user-select: none;
+            -webkit-user-select: none;
         }
         #gameCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
             display: block;
-            margin: 0 auto;
-            background: url('farm-background.jpg') no-repeat center center;
-            background-size: cover;
             cursor: none;
+            touch-action: none;
         }
         #topBar {
             position: absolute;
@@ -26,7 +34,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
+            flex-wrap: wrap;
+            gap: 4px 20px;
             z-index: 1;
             pointer-events: none;
         }
@@ -52,12 +61,14 @@
             left: 50%;
             transform: translateX(-50%);
             width: 300px;
+            max-width: calc(100% - 32px);
             height: 20px;
             background: rgba(0,0,0,0.6);
             border: 2px solid #fff;
             border-radius: 10px;
             overflow: hidden;
             z-index: 1;
+            pointer-events: none;
         }
         #dangerBar {
             width: 0%;
@@ -76,6 +87,7 @@
             font-family: Arial, sans-serif;
             text-shadow: 1px 1px 2px #000;
             z-index: 1;
+            pointer-events: none;
         }
         /* Power-up status indicators */
         #powerUpStatus {
@@ -104,12 +116,13 @@
         #gameOverOverlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.55);
             display: none;
             z-index: 10;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            text-align: center;
         }
         #gameOverOverlay.show {
             display: flex;
@@ -175,16 +188,18 @@
         #restartButton:active {
             transform: scale(0.95);
         }
-        /* Start screen */
+        /* Start screen (the 3D farm stays visible behind it) */
         #startScreen {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(180deg, #87CEEB 0%, #228B22 60%, #1a6b1a 100%);
+            background: linear-gradient(180deg, rgba(135,206,235,0.55) 0%, rgba(34,139,34,0.35) 60%, rgba(26,107,26,0.7) 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 20;
+            padding: 16px;
+            text-align: center;
         }
         #gameTitle {
             font-size: 56px;
@@ -193,6 +208,9 @@
             text-shadow: 3px 3px 6px #000, 0 0 30px rgba(255,215,0,0.6);
             margin-bottom: 10px;
             animation: titleBounce 1.5s ease-in-out infinite;
+        }
+        #gameTitle .badge3d {
+            color: #FF6347;
         }
         @keyframes titleBounce {
             0%, 100% { transform: translateY(0); }
@@ -219,11 +237,16 @@
             transition: transform 0.15s;
             animation: startPulse 2s ease-in-out infinite;
         }
+        #startButton:disabled {
+            opacity: 0.6;
+            cursor: wait;
+            animation: none;
+        }
         @keyframes startPulse {
             0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
             50% { box-shadow: 0 6px 30px rgba(255,215,0,0.8); }
         }
-        #startButton:hover {
+        #startButton:hover:not(:disabled) {
             transform: scale(1.08);
         }
         #instructionsBox {
@@ -242,6 +265,22 @@
             font-size: 20px;
             margin-right: 6px;
         }
+        #classicLink {
+            margin-top: 14px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px #000;
+        }
+        #classicLink a { color: #FFD700; }
+        #loadingText {
+            margin-top: 12px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px #000;
+            min-height: 18px;
+        }
         /* Wave announcement */
         #waveAnnouncement {
             position: absolute;
@@ -251,6 +290,8 @@
             z-index: 5;
             display: none;
             text-align: center;
+            pointer-events: none;
+            width: 100%;
         }
         #waveAnnouncement .wave-text {
             font-size: 60px;
@@ -347,6 +388,8 @@
             z-index: 6;
             display: none;
             text-align: center;
+            pointer-events: none;
+            width: 100%;
         }
         #weaponUnlockAnnouncement .unlock-text {
             font-size: 32px;
@@ -387,14 +430,126 @@
             border-radius: 0 0 6px 6px;
             transition: width 0.1s linear;
         }
+        /* ===== 3D overlay layer: floating texts, HP bars, crosshair ===== */
+        #labels {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .float-text {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            font-family: 'Arial Black', Arial, sans-serif;
+            font-weight: bold;
+            white-space: nowrap;
+            text-shadow: 0 0 8px #000, 2px 2px 2px #000;
+            will-change: transform, opacity;
+        }
+        .hp-bar {
+            position: absolute;
+            width: 44px;
+            height: 5px;
+            margin-left: -22px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .hp-bar > div {
+            height: 100%;
+            background: #44FF44;
+        }
+        #cursor2d {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            margin: -20px 0 0 -20px;
+            pointer-events: none;
+            z-index: 3;
+            display: none;
+        }
+        #cursor2d.laser {
+            width: 36px;
+            height: 36px;
+            margin: -18px 0 0 -18px;
+            border: 2px solid #00FFFF;
+            transform: rotate(45deg);
+            box-shadow: 0 0 12px #00FFFF, inset 0 0 8px #00FFFF;
+            animation: laserPulse 0.3s ease-in-out infinite alternate;
+        }
+        @keyframes laserPulse {
+            from { transform: rotate(45deg) scale(0.92); }
+            to { transform: rotate(45deg) scale(1.08); }
+        }
+        #comboMeter {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            width: 110px;
+            text-align: center;
+            z-index: 1;
+            pointer-events: none;
+            display: none;
+            font-family: 'Arial Black', Arial, sans-serif;
+        }
+        #comboValue { font-size: 28px; }
+        #comboLabel { font-size: 14px; font-family: Arial, sans-serif; font-weight: bold; }
+        #comboBarBg { height: 8px; background: rgba(0,0,0,0.5); margin-top: 4px; }
+        #comboBar { height: 100%; width: 100%; }
+        #freezeOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0;
+            transition: opacity 0.3s;
+            background: radial-gradient(ellipse at center, rgba(160,220,255,0) 55%, rgba(120,200,255,0.45) 100%);
+        }
+        #webglError {
+            position: absolute;
+            inset: 0;
+            display: none;
+            z-index: 30;
+            background: #1a3a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 16px;
+            line-height: 1.6;
+        }
+        #webglError a { color: #FFD700; }
+        @media (max-width: 600px) {
+            #gameTitle { font-size: 36px; }
+            #gameSubtitle { font-size: 17px; margin-bottom: 18px; }
+            #startButton { font-size: 24px; padding: 12px 40px; }
+            #instructionsBox { font-size: 13px; line-height: 1.6; margin-top: 18px; padding: 10px 14px; }
+            #score, #waveDisplay { font-size: 17px; }
+            #highScoreDisplay { font-size: 14px; }
+            #gameOverText { font-size: 44px; }
+            #finalScoreText { font-size: 28px; }
+            #waveAnnouncement .wave-text { font-size: 42px; }
+            #weaponUnlockAnnouncement .unlock-weapon { font-size: 30px; }
+            #weaponUnlockAnnouncement .unlock-text { font-size: 22px; }
+            .weapon-slot { width: 60px; }
+            #comboMeter { top: 80px; right: 10px; }
+        }
     </style>
 </head>
 <body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="freezeOverlay"></div>
+    <div id="labels"></div>
+    <img id="cursor2d" src="crosshair.svg" alt="">
+
     <!-- Start Screen -->
     <div id="startScreen">
-        <div id="gameTitle">Hammer the Chickens!</div>
+        <div id="gameTitle">Hammer the Chickens! <span class="badge3d">3D</span></div>
         <div id="gameSubtitle">How long can you defend your farm?</div>
-        <button id="startButton">START GAME</button>
+        <button id="startButton" disabled>LOADING...</button>
+        <div id="loadingText">Building the farm...</div>
         <div id="instructionsBox">
             <div><span class="instruction-icon">&#128296;</span> Click or tap to swing hammer</div>
             <div><span class="instruction-icon">&#127942;</span> Chain hits for combo multipliers</div>
@@ -404,9 +559,8 @@
             <div><span class="instruction-icon">&#9889;</span> Survive to Wave 8 to face the dragons!</div>
             <div><span class="instruction-icon">&#9888;&#65039;</span> Game over if 20 creatures escape!</div>
         </div>
+        <div id="classicLink">Prefer the original? <a href="classic.html">Play the classic 2D version</a></div>
     </div>
-
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
 
     <div id="topBar">
         <div id="score">Score: 0</div>
@@ -416,26 +570,32 @@
 
     <div id="powerUpStatus"></div>
 
+    <div id="comboMeter">
+        <div id="comboValue"></div>
+        <div id="comboLabel"></div>
+        <div id="comboBarBg"><div id="comboBar"></div></div>
+    </div>
+
     <!-- Weapon Selector Bar (hidden initially, shown during gameplay) -->
     <div id="weaponBar" style="display:none;">
-        <div class="weapon-slot active" data-weapon="hammer" onclick="switchWeapon('hammer')">
+        <div class="weapon-slot active" data-weapon="hammer">
             <span class="weapon-key">1</span>
             <span class="weapon-icon">&#128296;</span>
             <span class="weapon-name">Hammer</span>
         </div>
-        <div class="weapon-slot locked" data-weapon="machinegun" onclick="switchWeapon('machinegun')">
+        <div class="weapon-slot locked" data-weapon="machinegun">
             <span class="weapon-key">2</span>
             <span class="weapon-icon">&#128299;</span>
             <span class="weapon-name">Machine Gun</span>
             <span class="lock-overlay">&#128274; W4</span>
         </div>
-        <div class="weapon-slot locked" data-weapon="rocket" onclick="switchWeapon('rocket')">
+        <div class="weapon-slot locked" data-weapon="rocket">
             <span class="weapon-key">3</span>
             <span class="weapon-icon">&#128640;</span>
             <span class="weapon-name">Rocket</span>
             <span class="lock-overlay">&#128274; W6</span>
         </div>
-        <div class="weapon-slot locked" data-weapon="laser" onclick="switchWeapon('laser')">
+        <div class="weapon-slot locked" data-weapon="laser">
             <span class="weapon-key">4</span>
             <span class="weapon-icon">&#9889;</span>
             <span class="weapon-name">Laser</span>
@@ -470,87 +630,70 @@
         <button id="restartButton">Play Again</button>
     </div>
 
-    <script>
-        // ========== CANVAS SETUP ==========
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+    <div id="webglError">
+        <div>
+            Your browser could not start WebGL, which the 3D farm needs.<br>
+            <a href="classic.html">Play the classic 2D version instead</a>
+        </div>
+    </div>
+
+    <!-- All 3D models, generated in Blender by blender/build_assets.py and packed as base64 -->
+    <script src="assets/models.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
         // ========== GAME CONFIGURATION ==========
         const CONFIG = {
             maxChickens: 20,
-            chickenWidth: 60,
-            chickenHeight: 60,
-            hammerWidth: 50,
-            hammerHeight: 50,
             comboTimeLimit: 2000,
             baseSpawnInterval: 1000,
             minSpawnInterval: 250,
             baseChickenSpeed: 2,
             maxChickenSpeed: 7,
-            goldenChickenChance: 0.08,     // 8% chance per spawn
-            powerUpDropChance: 0.03,        // 3% chance per frame (checked periodically)
-            powerUpSize: 35,
-            particleCount: 12,
-            shakeIntensity: 8,
+            speedToWorld: 1.5,              // classic px/frame speed -> world units/second
+            goldenChickenChance: 0.08,      // 8% chance per spawn
+            shakeIntensity: 0.25,           // world units
             shakeDuration: 300,
             freezeDuration: 4000,
             doublePointsDuration: 8000,
             waveInterval: 25000,            // New wave every 25 seconds
+            // Arena (must match ARENA_X / ARENA_Z in blender/build_assets.py)
+            arenaHalfWidth: 12,
+            arenaHalfDepth: 7,
             // Weapon settings
             machineGunFireRate: 140,        // ms between shots
-            machineGunBulletSpeed: 14,      // pixels per frame
-            machineGunSpread: 0.08,         // bullet spread angle (radians)
+            machineGunBulletSpeed: 45,      // world units per second
+            machineGunSpread: 0.035,        // NDC jitter of each bullet
             rocketCooldown: 800,            // ms between rockets
-            rocketSpeed: 7,                 // pixels per frame
-            rocketBlastRadius: 140,         // explosion radius in pixels
-            machineGunImpactRange: 50,     // bullets only hit chickens within this distance of aim point
+            rocketSpeed: 18,                // world units per second
+            rocketBlastRadius: 3.5,         // explosion radius in world units
             machineGunUnlockWave: 4,
             rocketUnlockWave: 6,
             laserUnlockWave: 8,
             laserFireRate: 80,              // ms between laser pulses (very fast)
             laserDamage: 3,                 // damage per hit (kills dragons fast)
-            laserRange: 700,                // beam range in pixels
-            laserWidth: 4,                  // beam visual width
+            powerUpRadius: 0.9,
         };
 
-        // ========== ASSET LOADING ==========
-        const chickenImage = new Image();
-        chickenImage.src = 'chicken.png';
-        const chickenDeadImage = new Image();
-        chickenDeadImage.src = 'chicken-dead.png';
+        // Enemy archetypes: model, hit points and hit sphere (in world units)
+        const ENEMY_TYPES = {
+            chicken: { model: 'chicken', hp: 1, scale: 1.3,  radius: 0.95, centerY: 0.65, fly: false },
+            crab:    { model: 'crab',    hp: 1, scale: 1.2,  radius: 1.0,  centerY: 0.4,  fly: false },
+            hornet:  { model: 'hornet',  hp: 2, scale: 1.4,  radius: 0.85, centerY: 0.0,  fly: true, alt: [1.3, 2.6] },
+            dragon:  { model: 'dragon',  hp: 4, scale: 1.0,  radius: 1.6,  centerY: 0.1,  fly: true, alt: [2.4, 3.8] },
+        };
 
-        // Crab assets (wave 4+)
-        const crabImage = new Image();
-        crabImage.src = 'crab.svg';
-        const crabDeadImage = new Image();
-        crabDeadImage.src = 'crab_hit.svg';
-
-        // Hornet assets (wave 6+)
-        const hornetImage = new Image();
-        hornetImage.src = 'hornet.svg';
-        const hornetDeadImage = new Image();
-        hornetDeadImage.src = 'hornet_hit.svg';
-
-        // Dragon assets (wave 8+)
-        const dragonImage = new Image();
-        dragonImage.src = 'dragon.svg';
-        const dragonDeadImage = new Image();
-        dragonDeadImage.src = 'dragon_hit.svg';
-
-        const hammerOffImage = new Image();
-        hammerOffImage.src = 'hammer-off.png';
-        const hammerOnImage = new Image();
-        hammerOnImage.src = 'hammer-on.png';
-
-        let hammerImage = hammerOffImage;
-
-        // Weapon cursor images
-        const crosshairImage = new Image();
-        crosshairImage.src = 'crosshair.svg';
-        const rocketTargetImage = new Image();
-        rocketTargetImage.src = 'rocket-target.svg';
-
-        // Audio
+        // ========== AUDIO ==========
         const hitSound = new Audio('hit-sound.mp3');
         const missSound = new Audio('miss-sound.mp3');
         const backgroundMusic = new Audio('background.mp3');
@@ -576,34 +719,34 @@
         actionMusicEpic.volume = 0.25;
         let epicMusicTriggered = false;
 
+        function playSfx(audio) {
+            audio.currentTime = 0;
+            const p = audio.play();
+            if (p !== undefined) p.catch(() => {});
+        }
+
         // ========== GAME STATE ==========
         let score = 0;
         let multiplier = 1;
         let lastHitTime = 0;
-        let chickens = [];
-        let particles = [];
-        let floatingTexts = [];
+        let chickens = [];          // every creature on the field (chickens, crabs, hornets, dragons)
         let powerUps = [];
         let spawnInterval = CONFIG.baseSpawnInterval;
         let chickenSpeed = CONFIG.baseChickenSpeed;
-        let gameTime = 0;
-        let mouseX = canvas.width / 2;
-        let mouseY = canvas.height / 2;
         let isMouseDown = false;
         let isGameOver = false;
+        let gameRunning = false;
         let startTime;
         let highScore = parseInt(localStorage.getItem('chickenGameHighScore')) || 0;
         let totalChickensHit = 0;
 
         // Wave system
         let currentWave = 1;
-        let lastWaveTime = 0;
         let waveAnnouncementTimeout = null;
 
         // Screen shake
         let shakeTime = 0;
-        let shakeOffsetX = 0;
-        let shakeOffsetY = 0;
+        let shakeScale = 1;
 
         // Active power-ups
         let freezeActive = false;
@@ -621,17 +764,16 @@
         // ========== WEAPON SYSTEM STATE ==========
         let currentWeapon = 'hammer';
         let unlockedWeapons = ['hammer'];
-        let bullets = [];           // Machine gun bullets
+        let bullets = [];           // Machine gun tracers
         let rockets = [];           // Rocket projectiles
         let explosions = [];        // Explosion effects
         let lastFireTime = 0;       // Machine gun auto-fire timer
         let lastRocketTime = 0;     // Rocket cooldown timer
-        let autoFireInterval = null; // Machine gun auto-fire interval
+        let autoFireInterval = null; // Machine gun / laser auto-fire interval
         let weaponUnlockTimeout = null;
         let bulletsMissedConsecutive = 0; // Track consecutive bullet misses for combo cut
         let lastLaserFireTime = 0;       // Laser fire rate limiter
         let laserBeam = null;            // Active laser beam for rendering
-        let laserHitTarget = null;       // Current laser hit target
 
         // ========== HIGH SCORE ==========
         function loadHighScore() {
@@ -654,138 +796,63 @@
 
         function ensureAudioCtx() {
             if (!audioCtx) audioCtx = new AudioCtx();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        function playPowerUpSound() {
+        function tone(type, f0, f1, dur, vol, delay = 0) {
             ensureAudioCtx();
+            const t = audioCtx.currentTime + delay;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.15);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.3);
+            osc.type = type;
+            osc.frequency.setValueAtTime(f0, t);
+            if (f1) osc.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8);
+            gain.gain.setValueAtTime(vol, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
+            osc.start(t);
+            osc.stop(t + dur);
         }
 
-        function playFreezeSound() {
+        function noiseBurst(dur, vol, power = 1) {
             ensureAudioCtx();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(1500, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.5);
-        }
-
-        function playBombSound() {
-            ensureAudioCtx();
-            // Low rumble
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.6);
-            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.6);
-            // Noise burst
-            const bufferSize = audioCtx.sampleRate * 0.3;
+            const bufferSize = Math.floor(audioCtx.sampleRate * dur);
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
             for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, power);
             }
             const noise = audioCtx.createBufferSource();
             const noiseGain = audioCtx.createGain();
             noise.buffer = buffer;
             noise.connect(noiseGain);
             noiseGain.connect(audioCtx.destination);
-            noiseGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            noiseGain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
             noise.start(audioCtx.currentTime);
         }
 
-        function playGoldenHitSound() {
-            ensureAudioCtx();
-            const notes = [800, 1000, 1200, 1600];
-            notes.forEach((freq, i) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.08);
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.08);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.08 + 0.3);
-                osc.start(audioCtx.currentTime + i * 0.08);
-                osc.stop(audioCtx.currentTime + i * 0.08 + 0.3);
-            });
+        function playPowerUpSound() { tone('sine', 600, 1200, 0.3, 0.3); }
+        function playFreezeSound() { tone('triangle', 1500, 200, 0.5, 0.25); }
+        function playBombSound() {
+            tone('sawtooth', 100, 30, 0.6, 0.4);
+            noiseBurst(0.3, 0.3);
         }
-
+        function playGoldenHitSound() {
+            [800, 1000, 1200, 1600].forEach((f, i) => tone('sine', f, null, 0.3, 0.2, i * 0.08));
+        }
         function playWaveSound() {
-            ensureAudioCtx();
-            const notes = [523, 659, 784, 1047];
-            notes.forEach((freq, i) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.12);
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.12);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.12 + 0.25);
-                osc.start(audioCtx.currentTime + i * 0.12);
-                osc.stop(audioCtx.currentTime + i * 0.12 + 0.25);
-            });
+            [523, 659, 784, 1047].forEach((f, i) => tone('square', f, null, 0.25, 0.15, i * 0.12));
         }
 
         // ========== WEAPON SOUND EFFECTS ==========
         function playGunSound() {
-            ensureAudioCtx();
-            // Short percussive burst
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.06);
-            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.08);
-            // Noise click
-            const bufferSize = audioCtx.sampleRate * 0.04;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
-            }
-            const noise = audioCtx.createBufferSource();
-            const noiseGain = audioCtx.createGain();
-            noise.buffer = buffer;
-            noise.connect(noiseGain);
-            noiseGain.connect(audioCtx.destination);
-            noiseGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
-            noise.start(audioCtx.currentTime);
+            tone('square', 150, 60, 0.08, 0.25);
+            noiseBurst(0.04, 0.15);
         }
-
         function playRocketFireSound() {
             ensureAudioCtx();
-            // Whoosh sound
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
@@ -798,337 +865,560 @@
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
             osc.start(audioCtx.currentTime);
             osc.stop(audioCtx.currentTime + 0.4);
-            // White noise burst for thrust
-            const bufferSize = audioCtx.sampleRate * 0.3;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize) * 0.5;
-            }
-            const noise = audioCtx.createBufferSource();
-            const noiseGain = audioCtx.createGain();
-            noise.buffer = buffer;
-            noise.connect(noiseGain);
-            noiseGain.connect(audioCtx.destination);
-            noiseGain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            noise.start(audioCtx.currentTime);
+            noiseBurst(0.3, 0.12);
         }
-
         function playExplosionSound() {
-            ensureAudioCtx();
-            // Deep bass thud
-            const osc1 = audioCtx.createOscillator();
-            const gain1 = audioCtx.createGain();
-            osc1.connect(gain1);
-            gain1.connect(audioCtx.destination);
-            osc1.type = 'sine';
-            osc1.frequency.setValueAtTime(80, audioCtx.currentTime);
-            osc1.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.8);
-            gain1.gain.setValueAtTime(0.5, audioCtx.currentTime);
-            gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
-            osc1.start(audioCtx.currentTime);
-            osc1.stop(audioCtx.currentTime + 0.8);
-            // Crackle
-            const osc2 = audioCtx.createOscillator();
-            const gain2 = audioCtx.createGain();
-            osc2.connect(gain2);
-            gain2.connect(audioCtx.destination);
-            osc2.type = 'sawtooth';
-            osc2.frequency.setValueAtTime(300, audioCtx.currentTime);
-            osc2.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
-            gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-            osc2.start(audioCtx.currentTime);
-            osc2.stop(audioCtx.currentTime + 0.5);
-            // Explosion noise
-            const bufferSize = audioCtx.sampleRate * 0.6;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
-            }
-            const noise = audioCtx.createBufferSource();
-            const noiseGain = audioCtx.createGain();
-            noise.buffer = buffer;
-            noise.connect(noiseGain);
-            noiseGain.connect(audioCtx.destination);
-            noiseGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
-            noise.start(audioCtx.currentTime);
+            tone('sine', 80, 20, 0.8, 0.5);
+            tone('sawtooth', 300, 50, 0.5, 0.3);
+            noiseBurst(0.6, 0.35, 2);
         }
-
         function playWeaponUnlockSound() {
-            ensureAudioCtx();
-            const notes = [523, 659, 784, 1047, 1319];
-            notes.forEach((freq, i) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.1);
-                gain.gain.setValueAtTime(0.25, audioCtx.currentTime + i * 0.1);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.1 + 0.4);
-                osc.start(audioCtx.currentTime + i * 0.1);
-                osc.stop(audioCtx.currentTime + i * 0.1 + 0.4);
-            });
+            [523, 659, 784, 1047, 1319].forEach((f, i) => tone('sine', f, null, 0.4, 0.25, i * 0.1));
         }
-
         function playLaserSound() {
-            ensureAudioCtx();
-            // High-pitched zap sound
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(1800, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.08);
-            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.1);
-            // Electric crackle
-            const osc2 = audioCtx.createOscillator();
-            const gain2 = audioCtx.createGain();
-            osc2.connect(gain2);
-            gain2.connect(audioCtx.destination);
-            osc2.type = 'square';
-            osc2.frequency.setValueAtTime(3000, audioCtx.currentTime);
-            osc2.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.05);
-            gain2.gain.setValueAtTime(0.06, audioCtx.currentTime);
-            gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
-            osc2.start(audioCtx.currentTime);
-            osc2.stop(audioCtx.currentTime + 0.06);
+            tone('sawtooth', 1800, 400, 0.1, 0.12);
+            tone('square', 3000, 800, 0.06, 0.06);
+        }
+        function playThudSound() { tone('sine', 120, 45, 0.18, 0.35); }
+
+        // =====================================================================
+        // ========== THREE.JS SCENE ==========
+        // =====================================================================
+        const canvas = document.getElementById('gameCanvas');
+        let renderer;
+        try {
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+        } catch (err) {
+            document.getElementById('webglError').style.display = 'flex';
+            throw err;
+        }
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0xcde9f7, 60, 140);
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+        scene.environmentIntensity = 0.45;
+
+        const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
+        // Landscape looks across the long side of the field; portrait screens look along it
+        const LAYOUTS = {
+            landscape: { target: new THREE.Vector3(0, 0, 2.2), offset: new THREE.Vector3(0, 16.5, 17.5),
+                turret: new THREE.Vector3(0, 0, 8.6), fov: 42, halfWidth: 13.5, yaw: 0 },
+            portrait: { target: new THREE.Vector3(3.2, 0, 0), offset: new THREE.Vector3(15.5, 19, 0),
+                turret: new THREE.Vector3(14.4, 0, 0), fov: 58, halfWidth: 8.2, yaw: Math.PI / 2 },
+        };
+        let layout = LAYOUTS.landscape;
+        const CAMERA_TARGET = new THREE.Vector3();
+        const cameraBase = new THREE.Vector3();
+
+        // Sky dome with a vertical gradient
+        const sky = new THREE.Mesh(
+            new THREE.SphereGeometry(300, 32, 16),
+            new THREE.ShaderMaterial({
+                side: THREE.BackSide,
+                depthWrite: false,
+                fog: false,
+                uniforms: {
+                    top: { value: new THREE.Color(0x4aa3e8) },
+                    horizon: { value: new THREE.Color(0xd8f0fb) },
+                },
+                vertexShader: 'varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+                fragmentShader: 'uniform vec3 top; uniform vec3 horizon; varying vec3 vPos; void main(){ float h = clamp(normalize(vPos).y * 1.6, 0.0, 1.0); gl_FragColor = vec4(mix(horizon, top, pow(h, 0.8)), 1.0); }',
+            })
+        );
+        scene.add(sky);
+
+        // Lights
+        scene.add(new THREE.HemisphereLight(0xdff1ff, 0x5c7d3a, 1.25));
+        const sun = new THREE.DirectionalLight(0xfff0d6, 2.6);
+        sun.position.set(-9, 20, 11);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.camera.left = -22;
+        sun.shadow.camera.right = 22;
+        sun.shadow.camera.top = 22;
+        sun.shadow.camera.bottom = -22;
+        sun.shadow.camera.near = 1;
+        sun.shadow.camera.far = 70;
+        sun.shadow.bias = -0.0005;
+        sun.shadow.normalBias = 0.02;
+        scene.add(sun);
+        // Single flash light reused by explosions (adding lights at runtime forces shader recompiles)
+        const flashLight = new THREE.PointLight(0xff8a2a, 0, 16, 1.6);
+        scene.add(flashLight);
+
+        // Procedural textures
+        function makeCanvasTexture(w, h, draw, repeat) {
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            draw(c.getContext('2d'), w, h);
+            const tex = new THREE.CanvasTexture(c);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            if (repeat) {
+                tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(repeat, repeat);
+            }
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            return tex;
         }
 
-        // ========== PARTICLE SYSTEM ==========
-        function spawnParticles(x, y, color, count, isGolden) {
+        const grassTex = makeCanvasTexture(256, 256, (g, w, h) => {
+            g.fillStyle = '#5fae45';
+            g.fillRect(0, 0, w, h);
+            for (let i = 0; i < 2600; i++) {
+                const s = Math.random();
+                g.fillStyle = s < 0.5 ? 'rgba(40,110,40,0.35)' : 'rgba(150,210,90,0.35)';
+                g.fillRect(Math.random() * w, Math.random() * h, 2, 3 + Math.random() * 4);
+            }
+        }, 40);
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(320, 320),
+            new THREE.MeshStandardMaterial({ map: grassTex, roughness: 1 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Mowed arena patch with stripes
+        const arenaTex = makeCanvasTexture(512, 320, (g, w, h) => {
+            for (let i = 0; i < 12; i++) {
+                g.fillStyle = i % 2 ? '#79c45a' : '#6cb94f';
+                g.fillRect(i * w / 12, 0, w / 12 + 1, h);
+            }
+            for (let i = 0; i < 1800; i++) {
+                g.fillStyle = Math.random() < 0.5 ? 'rgba(60,130,50,0.25)' : 'rgba(170,220,110,0.25)';
+                g.fillRect(Math.random() * w, Math.random() * h, 2, 2 + Math.random() * 3);
+            }
+            g.strokeStyle = 'rgba(160,120,70,0.6)';
+            g.lineWidth = 10;
+            g.strokeRect(5, 5, w - 10, h - 10);
+        });
+        const arena = new THREE.Mesh(
+            new THREE.PlaneGeometry(CONFIG.arenaHalfWidth * 2 + 1.6, CONFIG.arenaHalfDepth * 2 + 1.6),
+            new THREE.MeshStandardMaterial({ map: arenaTex, roughness: 1 })
+        );
+        arena.rotation.x = -Math.PI / 2;
+        arena.position.y = 0.01;
+        arena.receiveShadow = true;
+        scene.add(arena);
+
+        // Glow sprite texture (golden aura, power-up halo, muzzle flash)
+        const glowTex = makeCanvasTexture(128, 128, (g, w, h) => {
+            const grd = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+            grd.addColorStop(0, 'rgba(255,255,255,1)');
+            grd.addColorStop(0.3, 'rgba(255,255,255,0.5)');
+            grd.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = grd;
+            g.fillRect(0, 0, w, h);
+        });
+        function makeGlow(color, size, opacity = 1) {
+            const s = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: glowTex, color, transparent: true, opacity,
+                blending: THREE.AdditiveBlending, depthWrite: false,
+            }));
+            s.scale.setScalar(size);
+            return s;
+        }
+
+        // ========== MODEL LOADING ==========
+        const models = {};
+        const loader = new GLTFLoader();
+
+        function base64ToArrayBuffer(b64) {
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        async function loadModels(onProgress) {
+            const names = Object.keys(window.CHICKEN_MODELS || {});
+            if (!names.length) throw new Error('assets/models.js is missing; run blender/build_assets.py');
+            let done = 0;
+            await Promise.all(names.map(name => new Promise((resolve, reject) => {
+                loader.parse(base64ToArrayBuffer(window.CHICKEN_MODELS[name]), '', gltf => {
+                    gltf.scene.traverse(o => {
+                        if (o.isMesh) {
+                            o.castShadow = true;
+                            o.receiveShadow = true;
+                        }
+                    });
+                    models[name] = gltf.scene;
+                    onProgress(++done / names.length);
+                    resolve();
+                }, reject);
+            })));
+        }
+
+        // Deep clone with per-instance materials so each creature can flash / fade on its own
+        function instantiate(name) {
+            const obj = models[name].clone(true);
+            const materials = [];
+            obj.traverse(o => {
+                if (o.isMesh) {
+                    o.material = o.material.clone();
+                    o.material.userData.baseEmissive = o.material.emissive.clone();
+                    o.material.userData.baseEmissiveIntensity = o.material.emissiveIntensity;
+                    o.material.userData.baseOpacity = o.material.opacity;
+                    materials.push(o.material);
+                }
+            });
+            obj.userData.materials = materials;
+            return obj;
+        }
+
+        function disposeInstance(obj) {
+            (obj.userData.materials || []).forEach(m => m.dispose());
+        }
+
+        // ========== FARM ENVIRONMENT ==========
+        let windmillRotor = null;
+        let clouds = null;
+        function setupFarm() {
+            const farm = models.farm;
+            farm.traverse(o => {
+                if (o.isMesh) {
+                    o.castShadow = !/Hills|Clouds|Props/.test(o.parent.name + o.name);
+                    o.receiveShadow = !/Clouds/.test(o.parent.name + o.name);
+                }
+            });
+            scene.add(farm);
+            windmillRotor = farm.getObjectByName('WindmillRotor');
+            clouds = farm.getObjectByName('Clouds');
+        }
+
+        // ========== WEAPON MODELS ==========
+        const weaponRigs = {};
+        const muzzleWorld = new THREE.Vector3();
+        let hammerRig = null;
+        let hammerSwing = 0;
+        let rocketMarker = null;
+        let aimRing = null;
+
+        function setupWeapons() {
+            const turretNames = { machinegun: 'machinegun', rocket: 'rocket_launcher', laser: 'laser' };
+            for (const [weapon, modelName] of Object.entries(turretNames)) {
+                const root = instantiate(modelName);
+                root.position.copy(layout.turret);
+                root.visible = false;
+                scene.add(root);
+                weaponRigs[weapon] = {
+                    root,
+                    gun: root.getObjectByName('Gun'),
+                    muzzle: root.getObjectByName('Muzzle'),
+                    recoil: 0,
+                    rise: 0,
+                };
+            }
+            hammerRig = instantiate('hammer');
+            hammerRig.scale.setScalar(HAMMER_SCALE);
+            scene.add(hammerRig);
+
+            // Rocket blast preview on the ground
+            rocketMarker = new THREE.Mesh(
+                new THREE.RingGeometry(CONFIG.rocketBlastRadius - 0.12, CONFIG.rocketBlastRadius, 48),
+                new THREE.MeshBasicMaterial({ color: 0xff6a00, transparent: true, opacity: 0.55, depthWrite: false })
+            );
+            rocketMarker.rotation.x = -Math.PI / 2;
+            rocketMarker.visible = false;
+            scene.add(rocketMarker);
+
+            // Small ring under the aim point to show depth for the hammer
+            aimRing = new THREE.Mesh(
+                new THREE.RingGeometry(0.35, 0.5, 32),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false })
+            );
+            aimRing.rotation.x = -Math.PI / 2;
+            scene.add(aimRing);
+        }
+
+        function refreshWeaponVisibility() {
+            for (const [weapon, rig] of Object.entries(weaponRigs)) {
+                const show = gameRunning && currentWeapon === weapon;
+                if (show && !rig.root.visible) rig.rise = 0;
+                rig.root.visible = show;
+            }
+            hammerRig.visible = gameRunning && currentWeapon === 'hammer';
+            rocketMarker.visible = gameRunning && currentWeapon === 'rocket';
+            const cursor = document.getElementById('cursor2d');
+            if (gameRunning && currentWeapon === 'machinegun') {
+                cursor.style.display = 'block';
+                cursor.className = '';
+                cursor.src = 'crosshair.svg';
+            } else if (gameRunning && currentWeapon === 'laser') {
+                cursor.style.display = 'block';
+                cursor.className = 'laser';
+                cursor.removeAttribute('src');
+            } else if (gameRunning && currentWeapon === 'rocket') {
+                cursor.style.display = 'block';
+                cursor.className = '';
+                cursor.src = 'rocket-target.svg';
+            } else {
+                cursor.style.display = 'none';
+            }
+        }
+
+        // ========== POINTER / AIMING ==========
+        const pointer = new THREE.Vector2(0, -0.2);
+        let pointerPx = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        let lastPointerType = 'mouse';
+        const raycaster = new THREE.Raycaster();
+        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const aimPoint = new THREE.Vector3();
+        let aimEnemy = null;
+        const tmpV = new THREE.Vector3();
+        const tmpV2 = new THREE.Vector3();
+        const tmpSphere = new THREE.Sphere();
+
+        function enemyCenter(chicken, target) {
+            return target.copy(chicken.group.position).add(tmpV2.set(0, chicken.type.centerY * chicken.type.scale, 0));
+        }
+
+        function hitRadius(chicken) {
+            return chicken.type.radius * (lastPointerType === 'touch' ? 1.25 : 1);
+        }
+
+        // Cast a ray from the camera through an NDC point; returns the closest live creature hit
+        function pickEnemy(ndc, outPoint) {
+            raycaster.setFromCamera(ndc, camera);
+            let best = null;
+            let bestDist = Infinity;
+            for (const chicken of chickens) {
+                if (chicken.isDead) continue;
+                enemyCenter(chicken, tmpSphere.center);
+                tmpSphere.radius = hitRadius(chicken) * chicken.entryScale;
+                if (raycaster.ray.intersectSphere(tmpSphere, tmpV)) {
+                    const d = tmpV.distanceTo(raycaster.ray.origin);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        best = chicken;
+                        if (outPoint) outPoint.copy(tmpV);
+                    }
+                }
+            }
+            if (!best && outPoint) {
+                if (!raycaster.ray.intersectPlane(groundPlane, outPoint)) {
+                    raycaster.ray.at(60, outPoint);
+                }
+            }
+            return best;
+        }
+
+        function updateAim() {
+            aimEnemy = pickEnemy(pointer, aimPoint);
+        }
+
+        function setPointerFromEvent(event) {
+            const rect = canvas.getBoundingClientRect();
+            pointerPx = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+            pointer.x = (pointerPx.x / rect.width) * 2 - 1;
+            pointer.y = -(pointerPx.y / rect.height) * 2 + 1;
+            if (event.pointerType) lastPointerType = event.pointerType;
+        }
+
+        // Project a world position to CSS pixels
+        function toScreen(v) {
+            tmpV.copy(v).project(camera);
+            return {
+                x: (tmpV.x * 0.5 + 0.5) * canvas.clientWidth,
+                y: (-tmpV.y * 0.5 + 0.5) * canvas.clientHeight,
+                visible: tmpV.z < 1,
+            };
+        }
+
+        // ========== PARTICLE SYSTEM (instanced) ==========
+        const MAX_PARTICLES = 900;
+        const particleMesh = new THREE.InstancedMesh(
+            new THREE.IcosahedronGeometry(1, 0),
+            new THREE.MeshBasicMaterial({ color: 0xffffff }),
+            MAX_PARTICLES
+        );
+        particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        particleMesh.frustumCulled = false;
+        particleMesh.count = 0;
+        scene.add(particleMesh);
+        let particles = [];
+        const pDummy = new THREE.Object3D();
+        const pColor = new THREE.Color();
+
+        function spawnParticles(pos, color, count, isGolden, opts = {}) {
+            const speed = opts.speed || 1;
             for (let i = 0; i < count; i++) {
+                if (particles.length >= MAX_PARTICLES) particles.shift();
                 const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
-                const speed = 2 + Math.random() * 4;
-                const size = isGolden ? (4 + Math.random() * 6) : (3 + Math.random() * 4);
+                const s = (2 + Math.random() * 3.5) * speed;
+                const up = opts.flat ? Math.random() * 1.5 : (1.5 + Math.random() * 4);
                 particles.push({
-                    x: x,
-                    y: y,
-                    dx: Math.cos(angle) * speed,
-                    dy: Math.sin(angle) * speed - 2,
-                    size: size,
-                    color: color,
+                    pos: new THREE.Vector3(pos.x, pos.y, pos.z),
+                    vel: new THREE.Vector3(Math.cos(angle) * s, up * speed, Math.sin(angle) * s),
+                    size: (isGolden ? 0.1 + Math.random() * 0.12 : 0.07 + Math.random() * 0.08) * (opts.sizeMul || 1),
+                    color: new THREE.Color(color),
                     life: 1.0,
-                    decay: 0.015 + Math.random() * 0.02,
-                    gravity: 0.1,
-                    isGolden: isGolden
+                    decay: (0.9 + Math.random() * 1.2) * (opts.decayMul || 1),
+                    gravity: opts.gravity !== undefined ? opts.gravity : 9,
+                    drag: opts.drag || 1.2,
+                    spin: new THREE.Euler(Math.random() * 6, Math.random() * 6, Math.random() * 6),
                 });
             }
         }
 
-        function updateParticles() {
+        function updateParticles(dt) {
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
-                p.x += p.dx;
-                p.y += p.dy;
-                p.dy += p.gravity;
-                p.life -= p.decay;
-                p.size *= 0.98;
-                if (p.life <= 0) {
-                    particles.splice(i, 1);
+                p.vel.y -= p.gravity * dt;
+                p.vel.multiplyScalar(Math.max(0, 1 - p.drag * dt));
+                p.pos.addScaledVector(p.vel, dt);
+                if (p.pos.y < 0.03 && p.gravity > 0) {
+                    p.pos.y = 0.03;
+                    p.vel.y *= -0.3;
+                    p.vel.x *= 0.6;
+                    p.vel.z *= 0.6;
                 }
+                p.spin.x += dt * 5;
+                p.spin.z += dt * 4;
+                p.life -= p.decay * dt;
+                if (p.life <= 0) particles.splice(i, 1);
             }
+            particleMesh.count = particles.length;
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                const s = p.size * Math.min(1, p.life * 1.6);
+                pDummy.position.copy(p.pos);
+                pDummy.rotation.copy(p.spin);
+                pDummy.scale.set(s, s * 0.35, s * 0.8);   // flattened chips look like feathers / debris
+                pDummy.updateMatrix();
+                particleMesh.setMatrixAt(i, pDummy.matrix);
+                particleMesh.setColorAt(i, pColor.copy(p.color));
+            }
+            particleMesh.instanceMatrix.needsUpdate = true;
+            if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
         }
 
-        function drawParticles() {
-            particles.forEach(p => {
-                ctx.save();
-                ctx.globalAlpha = p.life;
-                if (p.isGolden) {
-                    // Glowing golden particle
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = '#FFD700';
-                }
-                ctx.fillStyle = p.color;
-                ctx.beginPath();
-                // Draw feather-like shapes
-                ctx.ellipse(p.x, p.y, p.size, p.size * 0.5, Math.atan2(p.dy, p.dx), 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
+        // ========== FLOATING TEXT (DOM overlay projected from 3D) ==========
+        const labelsLayer = document.getElementById('labels');
+        let floatingTexts = [];
+
+        function spawnFloatingText(pos, text, color, size) {
+            const el = document.createElement('div');
+            el.className = 'float-text';
+            el.textContent = text;
+            el.style.color = color;
+            el.style.fontSize = (size || 24) + 'px';
+            labelsLayer.appendChild(el);
+            floatingTexts.push({ pos: pos.clone(), el, life: 1.0, offset: 0, dy: -2 });
         }
 
-        // ========== FLOATING TEXT ==========
-        function spawnFloatingText(x, y, text, color, size) {
-            floatingTexts.push({
-                x: x,
-                y: y,
-                text: text,
-                color: color,
-                size: size || 24,
-                life: 1.0,
-                dy: -2
-            });
-        }
-
-        function updateFloatingTexts() {
+        function updateFloatingTexts(dt) {
+            const frames = dt * 60;
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 const ft = floatingTexts[i];
-                ft.y += ft.dy;
-                ft.dy *= 0.98;
-                ft.life -= 0.02;
+                ft.offset += ft.dy * frames;
+                ft.dy *= Math.pow(0.98, frames);
+                ft.life -= 0.02 * frames;
                 if (ft.life <= 0) {
+                    ft.el.remove();
                     floatingTexts.splice(i, 1);
+                    continue;
                 }
+                const s = toScreen(ft.pos);
+                ft.el.style.left = s.x + 'px';
+                ft.el.style.top = (s.y + ft.offset) + 'px';
+                ft.el.style.opacity = ft.life;
             }
-        }
-
-        function drawFloatingTexts() {
-            floatingTexts.forEach(ft => {
-                ctx.save();
-                ctx.globalAlpha = ft.life;
-                ctx.fillStyle = ft.color;
-                ctx.font = `bold ${ft.size}px Arial Black, Arial`;
-                ctx.textAlign = 'center';
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#000';
-                ctx.fillText(ft.text, ft.x, ft.y);
-                ctx.restore();
-            });
         }
 
         // ========== SCREEN SHAKE ==========
         function triggerShake(intensity) {
             shakeTime = CONFIG.shakeDuration;
-            shakeOffsetX = 0;
-            shakeOffsetY = 0;
-        }
-
-        function updateShake(dt) {
-            if (shakeTime > 0) {
-                shakeTime -= dt;
-                const intensity = CONFIG.shakeIntensity * (shakeTime / CONFIG.shakeDuration);
-                shakeOffsetX = (Math.random() - 0.5) * intensity * 2;
-                shakeOffsetY = (Math.random() - 0.5) * intensity * 2;
-            } else {
-                shakeOffsetX = 0;
-                shakeOffsetY = 0;
-            }
+            shakeScale = Math.min(2.5, Math.max(1, (intensity || 8) / 8));
         }
 
         // ========== BULLET SYSTEM (MACHINE GUN) ==========
+        const bulletGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.9, 5);
+        bulletGeo.rotateX(Math.PI / 2);
+        const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffdd44 });
+        const UP_Z = new THREE.Vector3(0, 0, 1);
+
+        function getMuzzle(weapon) {
+            const rig = weaponRigs[weapon];
+            rig.root.updateMatrixWorld(true);
+            return rig.muzzle.getWorldPosition(muzzleWorld).clone();
+        }
+
+        function muzzleFlash(pos, color) {
+            const g = makeGlow(color, 1.6, 1);
+            g.position.copy(pos);
+            scene.add(g);
+            explosions.push({ glowOnly: g, startTime: Date.now(), duration: 70 });
+        }
+
         function fireBullet() {
             if (isGameOver) return;
             const currentTime = Date.now();
             if (currentTime - lastFireTime < CONFIG.machineGunFireRate) return;
             lastFireTime = currentTime;
 
-            // Fire from bottom-center of screen toward mouse
-            const startX = canvas.width / 2;
-            const startY = canvas.height - 10;
-            const angle = Math.atan2(mouseY - startY, mouseX - startX);
-            // Add slight spread
-            const spread = (Math.random() - 0.5) * CONFIG.machineGunSpread;
-            // Bullet travels only as far as the aim point (plus a small buffer)
-            const distToAim = Math.sqrt((mouseX - startX) ** 2 + (mouseY - startY) ** 2);
+            // Every bullet picks its own target along a slightly jittered aim ray
+            const jitter = new THREE.Vector2(
+                pointer.x + (Math.random() - 0.5) * CONFIG.machineGunSpread,
+                pointer.y + (Math.random() - 0.5) * CONFIG.machineGunSpread
+            );
+            const target = new THREE.Vector3();
+            const targetEnemy = pickEnemy(jitter, target);
+            const start = getMuzzle('machinegun');
+            const dir = target.clone().sub(start);
+            const dist = dir.length();
+            dir.normalize();
 
-            bullets.push({
-                x: startX,
-                y: startY,
-                dx: Math.cos(angle + spread) * CONFIG.machineGunBulletSpeed,
-                dy: Math.sin(angle + spread) * CONFIG.machineGunBulletSpeed,
-                life: 1.0,
-                trail: [],
-                distToTarget: distToAim + 20,
-                distTraveled: 0
-            });
+            const mesh = new THREE.Mesh(bulletGeo, bulletMat);
+            mesh.position.copy(start);
+            mesh.quaternion.setFromUnitVectors(UP_Z, dir);
+            scene.add(mesh);
+            bullets.push({ mesh, dir, dist, traveled: 0, target, targetEnemy });
 
+            weaponRigs.machinegun.recoil = 1;
+            muzzleFlash(start, 0xffcc33);
             playGunSound();
-            // Muzzle flash particles
-            spawnParticles(startX, startY, '#FFDD44', 3, false);
         }
 
-        function updateBullets() {
+        function updateBullets(dt) {
             const currentTime = Date.now();
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const b = bullets[i];
-                // Store trail positions
-                b.trail.push({ x: b.x, y: b.y });
-                if (b.trail.length > 5) b.trail.shift();
+                const step = CONFIG.machineGunBulletSpeed * dt;
+                b.traveled += step;
+                b.mesh.position.addScaledVector(b.dir, step);
+                if (b.traveled < b.dist) continue;
 
-                b.x += b.dx;
-                b.y += b.dy;
-                b.distTraveled += CONFIG.machineGunBulletSpeed;
-
-                // Check collision with chickens only near the impact point
-                // (bullets pass through chickens along the trajectory)
-                let hitChicken = false;
-                const nearImpact = b.distTraveled >= b.distToTarget - CONFIG.machineGunImpactRange;
-                if (nearImpact) {
-                    for (let j = 0; j < chickens.length; j++) {
-                        const chicken = chickens[j];
-                        if (!chicken.isDead &&
-                            b.x >= chicken.x && b.x <= chicken.x + CONFIG.chickenWidth &&
-                            b.y >= chicken.y && b.y <= chicken.y + CONFIG.chickenHeight
-                        ) {
-                            // Hit chicken — reset miss counter
-                            bulletsMissedConsecutive = 0;
-                            hitChickenWithBullet(chicken, currentTime);
-                            bullets.splice(i, 1);
-                            hitChicken = true;
-                            break;
-                        }
+                // Bullets only hit what is near their impact point (they pass over everything else)
+                const chicken = b.targetEnemy;
+                let hit = false;
+                if (chicken && !chicken.isDead) {
+                    enemyCenter(chicken, tmpV);
+                    if (tmpV.distanceTo(b.target) <= hitRadius(chicken) * 1.4) {
+                        bulletsMissedConsecutive = 0;
+                        hitChickenWithBullet(chicken, currentTime);
+                        hit = true;
                     }
                 }
-                if (hitChicken) continue;
-
-                // Remove bullet once it has reached the aim point or gone off screen
-                if (b.distTraveled >= b.distToTarget ||
-                    b.x < -10 || b.x > canvas.width + 10 || b.y < -10 || b.y > canvas.height + 10) {
-                    // Bullet expired without a kill — track missed bullets
+                if (!hit) {
+                    // Bullet expired without a kill: track missed bullets
                     bulletsMissedConsecutive++;
                     if (bulletsMissedConsecutive >= 4) {
                         multiplier = 1;
                         bulletsMissedConsecutive = 0;
                     }
-                    bullets.splice(i, 1);
-                    continue;
+                    spawnParticles(b.target, '#b89b6a', 3, false, { speed: 0.5, gravity: 9 });
                 }
+                scene.remove(b.mesh);
+                bullets.splice(i, 1);
             }
-        }
-
-        function drawBullets() {
-            bullets.forEach(b => {
-                ctx.save();
-                // Draw trail
-                if (b.trail.length > 1) {
-                    ctx.beginPath();
-                    ctx.moveTo(b.trail[0].x, b.trail[0].y);
-                    for (let t = 1; t < b.trail.length; t++) {
-                        ctx.lineTo(b.trail[t].x, b.trail[t].y);
-                    }
-                    ctx.lineTo(b.x, b.y);
-                    ctx.strokeStyle = 'rgba(255, 220, 60, 0.4)';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                }
-                // Draw bullet
-                const angle = Math.atan2(b.dy, b.dx);
-                ctx.translate(b.x, b.y);
-                ctx.rotate(angle);
-                // Bullet glow
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#FFDD44';
-                // Bullet shape (elongated)
-                ctx.fillStyle = '#FFDD44';
-                ctx.beginPath();
-                ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
-                ctx.fill();
-                // Bullet core
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath();
-                ctx.ellipse(1, 0, 3, 1.5, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
         }
 
         // ========== ROCKET SYSTEM ==========
@@ -1138,186 +1428,96 @@
             if (currentTime - lastRocketTime < CONFIG.rocketCooldown) return;
             lastRocketTime = currentTime;
 
-            const startX = canvas.width / 2;
-            const startY = canvas.height - 10;
-            const targetX = mouseX;
-            const targetY = mouseY;
-            const angle = Math.atan2(targetY - startY, targetX - startX);
-            const dist = Math.sqrt((targetX - startX) ** 2 + (targetY - startY) ** 2);
-
+            const start = getMuzzle('rocket');
+            const target = aimPoint.clone();
+            const mesh = models.rocket.clone(true);
+            mesh.position.copy(start);
+            scene.add(mesh);
+            const dist = start.distanceTo(target);
             rockets.push({
-                x: startX,
-                y: startY,
-                dx: Math.cos(angle) * CONFIG.rocketSpeed,
-                dy: Math.sin(angle) * CONFIG.rocketSpeed,
-                targetX: targetX,
-                targetY: targetY,
-                distToTarget: dist,
-                distTraveled: 0,
-                angle: angle,
-                trail: [],
-                alive: true
+                mesh, start, target,
+                duration: Math.max(0.25, dist / CONFIG.rocketSpeed),
+                t: 0,
+                arc: Math.min(3, dist * 0.12),
+                prev: start.clone(),
             });
 
+            weaponRigs.rocket.recoil = 1;
+            muzzleFlash(start, 0xff8833);
             playRocketFireSound();
         }
 
-        function updateRockets() {
+        function rocketPos(r, t, out) {
+            out.lerpVectors(r.start, r.target, t);
+            out.y += Math.sin(Math.PI * t) * r.arc;
+            return out;
+        }
+
+        function updateRockets(dt) {
             const currentTime = Date.now();
             for (let i = rockets.length - 1; i >= 0; i--) {
                 const r = rockets[i];
-                if (!r.alive) {
-                    rockets.splice(i, 1);
-                    continue;
-                }
+                r.t = Math.min(1, r.t + dt / r.duration);
+                r.prev.copy(r.mesh.position);
+                rocketPos(r, r.t, r.mesh.position);
+                rocketPos(r, Math.min(1, r.t + 0.02), tmpV);
+                if (tmpV.distanceToSquared(r.mesh.position) > 1e-6) r.mesh.lookAt(tmpV);
 
-                // Store trail
-                r.trail.push({ x: r.x, y: r.y, time: currentTime });
-                if (r.trail.length > 12) r.trail.shift();
-                // Remove old trail entries
-                r.trail = r.trail.filter(t => currentTime - t.time < 400);
-
-                r.x += r.dx;
-                r.y += r.dy;
-                r.distTraveled += CONFIG.rocketSpeed;
-
-                // Spawn smoke trail particles
-                if (Math.random() < 0.5) {
+                // Smoke and fire trail
+                if (Math.random() < 0.9) {
                     particles.push({
-                        x: r.x - r.dx * 0.5,
-                        y: r.y - r.dy * 0.5,
-                        dx: (Math.random() - 0.5) * 1.5,
-                        dy: (Math.random() - 0.5) * 1.5,
-                        size: 3 + Math.random() * 3,
-                        color: Math.random() < 0.5 ? '#FF6600' : '#888888',
-                        life: 0.6,
-                        decay: 0.03 + Math.random() * 0.02,
-                        gravity: -0.05,
-                        isGolden: false
+                        pos: r.prev.clone(),
+                        vel: new THREE.Vector3((Math.random() - 0.5), 0.6 + Math.random(), (Math.random() - 0.5)),
+                        size: 0.12 + Math.random() * 0.12,
+                        color: new THREE.Color(Math.random() < 0.45 ? '#FF6600' : '#9a9a9a'),
+                        life: 0.8,
+                        decay: 1.6 + Math.random(),
+                        gravity: -0.5,
+                        drag: 1,
+                        spin: new THREE.Euler(),
                     });
                 }
 
-                // Check if rocket reached target or went off screen
-                // Rockets always fly to the target — no early detonation on path chickens
-                if (r.distTraveled >= r.distToTarget ||
-                    r.x < -20 || r.x > canvas.width + 20 ||
-                    r.y < -20 || r.y > canvas.height + 20) {
-                    // Explode at target!
-                    triggerExplosion(r.x, r.y, currentTime);
-                    r.alive = false;
-                    continue;
+                // Rockets always fly to the target: no early detonation on creatures along the path
+                if (r.t >= 1) {
+                    triggerExplosion(r.target.clone(), currentTime);
+                    scene.remove(r.mesh);
+                    rockets.splice(i, 1);
                 }
             }
         }
 
-        function drawRockets() {
-            rockets.forEach(r => {
-                if (!r.alive) return;
-                ctx.save();
-
-                // Draw exhaust trail
-                if (r.trail.length > 1) {
-                    const now = Date.now();
-                    for (let t = 0; t < r.trail.length - 1; t++) {
-                        const age = (now - r.trail[t].time) / 400;
-                        ctx.globalAlpha = (1 - age) * 0.6;
-                        ctx.beginPath();
-                        ctx.arc(r.trail[t].x, r.trail[t].y, 3 * (1 - age) + 1, 0, Math.PI * 2);
-                        ctx.fillStyle = `hsl(${30 - age * 30}, 100%, ${60 - age * 20}%)`;
-                        ctx.fill();
-                    }
-                }
-
-                ctx.globalAlpha = 1;
-                ctx.translate(r.x, r.y);
-                ctx.rotate(r.angle);
-
-                // Rocket glow
-                ctx.shadowBlur = 12;
-                ctx.shadowColor = '#FF4400';
-
-                // Rocket body
-                ctx.fillStyle = '#cc3333';
-                ctx.beginPath();
-                ctx.ellipse(0, 0, 10, 5, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Nose cone
-                ctx.fillStyle = '#ff5555';
-                ctx.beginPath();
-                ctx.moveTo(10, 0);
-                ctx.lineTo(5, -4);
-                ctx.lineTo(5, 4);
-                ctx.closePath();
-                ctx.fill();
-
-                // Fins
-                ctx.fillStyle = '#ff8800';
-                ctx.beginPath();
-                ctx.moveTo(-8, -2);
-                ctx.lineTo(-13, -7);
-                ctx.lineTo(-6, -3);
-                ctx.closePath();
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(-8, 2);
-                ctx.lineTo(-13, 7);
-                ctx.lineTo(-6, 3);
-                ctx.closePath();
-                ctx.fill();
-
-                // Exhaust flame
-                ctx.fillStyle = '#FFAA00';
-                ctx.beginPath();
-                ctx.moveTo(-8, -3);
-                ctx.lineTo(-15 - Math.random() * 5, 0);
-                ctx.lineTo(-8, 3);
-                ctx.closePath();
-                ctx.fill();
-
-                ctx.restore();
-            });
-        }
-
         // ========== LASER SYSTEM ==========
+        const laserGroup = new THREE.Group();
+        const laserOuter = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.16, 0.16, 1, 10, 1, true).rotateX(Math.PI / 2).translate(0, 0, 0.5),
+            new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })
+        );
+        const laserCore = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.05, 1, 8, 1, true).rotateX(Math.PI / 2).translate(0, 0, 0.5),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
+        );
+        const laserImpact = makeGlow(0x00ffff, 1.4);
+        laserGroup.add(laserOuter, laserCore);
+        laserGroup.visible = false;
+        laserImpact.visible = false;
+        scene.add(laserGroup, laserImpact);
+
         function fireLaser() {
             if (isGameOver) return;
             const currentTime = Date.now();
             if (currentTime - lastLaserFireTime < CONFIG.laserFireRate) return;
             lastLaserFireTime = currentTime;
 
-            // Fire beam from bottom-center toward mouse
-            const startX = canvas.width / 2;
-            const startY = canvas.height - 10;
-            const angle = Math.atan2(mouseY - startY, mouseX - startX);
-            const endX = startX + Math.cos(angle) * CONFIG.laserRange;
-            const endY = startY + Math.sin(angle) * CONFIG.laserRange;
-
-            // Store beam for rendering
-            laserBeam = { startX, startY, endX: mouseX, endY: mouseY, time: currentTime };
-
+            const start = getMuzzle('laser');
+            const end = aimPoint.clone();
+            laserBeam = { start, end, time: currentTime };
             playLaserSound();
 
-            // Check hit along beam — find closest chicken to aim point
-            let closestChicken = null;
-            let closestDist = Infinity;
-            for (let j = 0; j < chickens.length; j++) {
-                const chicken = chickens[j];
-                if (chicken.isDead) continue;
-                const cx = chicken.x + CONFIG.chickenWidth / 2;
-                const cy = chicken.y + CONFIG.chickenHeight / 2;
-                const dx = mouseX - cx;
-                const dy = mouseY - cy;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < CONFIG.chickenWidth * 0.8 && dist < closestDist) {
-                    closestDist = dist;
-                    closestChicken = chicken;
-                }
-            }
-
-            if (closestChicken) {
+            // Laser hits the closest creature under the aim ray
+            if (aimEnemy && !aimEnemy.isDead) {
                 bulletsMissedConsecutive = 0;
-                hitChickenWithLaser(closestChicken, currentTime);
+                hitChickenWithLaser(aimEnemy, currentTime);
             } else {
                 bulletsMissedConsecutive++;
                 if (bulletsMissedConsecutive >= 6) {
@@ -1326,8 +1526,8 @@
                 }
             }
 
-            // Beam impact particles
-            spawnParticles(mouseX, mouseY, '#00FFFF', 2, false);
+            weaponRigs.laser.recoil = 0.5;
+            spawnParticles(end, '#00FFFF', 2, false, { speed: 0.6 });
         }
 
         function hitChickenWithLaser(chicken, currentTime) {
@@ -1338,91 +1538,85 @@
                 chicken.hp = (chicken.hp || 1) - CONFIG.laserDamage;
             }
             if (chicken.hp > 0) {
-                hitSound.currentTime = 0;
-                hitSound.play();
-                const cx = chicken.x + CONFIG.chickenWidth / 2;
-                const cy = chicken.y + CONFIG.chickenHeight / 2;
-                spawnParticles(cx, cy, '#00FFFF', 3, false);
-                spawnFloatingText(cx, cy - 20, 'ZAP!', '#00FFFF', 16);
+                playSfx(hitSound);
+                const c = enemyCenter(chicken, new THREE.Vector3());
+                spawnParticles(c, '#00FFFF', 3, false);
+                spawnFloatingText(c, 'ZAP!', '#00FFFF', 16);
                 chicken.damageFlash = currentTime;
                 return;
             }
             killChickenWithWeapon(chicken, currentTime);
         }
 
-        function drawLaserBeam() {
-            if (!laserBeam) return;
+        function updateLaserBeam() {
+            if (!laserBeam) {
+                laserGroup.visible = false;
+                laserImpact.visible = false;
+                return;
+            }
             const elapsed = Date.now() - laserBeam.time;
             if (elapsed > 120) {
                 laserBeam = null;
+                laserGroup.visible = false;
+                laserImpact.visible = false;
                 return;
             }
             const alpha = 1 - elapsed / 120;
-            ctx.save();
-            // Outer glow
-            ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.3})`;
-            ctx.lineWidth = CONFIG.laserWidth * 3;
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#00FFFF';
-            ctx.beginPath();
-            ctx.moveTo(laserBeam.startX, laserBeam.startY);
-            ctx.lineTo(laserBeam.endX, laserBeam.endY);
-            ctx.stroke();
-            // Core beam
-            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
-            ctx.lineWidth = CONFIG.laserWidth;
-            ctx.beginPath();
-            ctx.moveTo(laserBeam.startX, laserBeam.startY);
-            ctx.lineTo(laserBeam.endX, laserBeam.endY);
-            ctx.stroke();
-            // Impact circle
-            ctx.fillStyle = `rgba(0, 255, 255, ${alpha * 0.5})`;
-            ctx.beginPath();
-            ctx.arc(laserBeam.endX, laserBeam.endY, 8 * alpha, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+            laserGroup.visible = true;
+            laserImpact.visible = true;
+            laserGroup.position.copy(laserBeam.start);
+            laserGroup.lookAt(laserBeam.end);
+            const len = laserBeam.start.distanceTo(laserBeam.end);
+            laserGroup.scale.set(1 + (1 - alpha) * 0.5, 1 + (1 - alpha) * 0.5, len);
+            laserOuter.material.opacity = 0.35 * alpha;
+            laserCore.material.opacity = 0.9 * alpha;
+            laserImpact.position.copy(laserBeam.end);
+            laserImpact.material.opacity = alpha;
         }
 
         // ========== EXPLOSION SYSTEM ==========
-        function triggerExplosion(x, y, currentTime) {
+        const explosionGeo = new THREE.IcosahedronGeometry(1, 2);
+        const shockGeo = new THREE.RingGeometry(0.85, 1, 48);
+
+        function spawnExplosionVisual(pos, radius, duration = 600) {
+            const fireball = new THREE.Mesh(explosionGeo, new THREE.MeshBasicMaterial({
+                color: 0xffaa33, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false,
+            }));
+            fireball.position.copy(pos);
+            const ring = new THREE.Mesh(shockGeo, new THREE.MeshBasicMaterial({
+                color: 0xffd28a, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false,
+            }));
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.set(pos.x, 0.06, pos.z);
+            const glow = makeGlow(0xff7a1a, radius * 2.2, 1);
+            glow.position.copy(pos);
+            scene.add(fireball, ring, glow);
+            explosions.push({ fireball, ring, glow, startTime: Date.now(), duration, maxRadius: radius });
+            flashLight.position.copy(pos).setY(Math.max(pos.y, 1.5));
+            flashLight.intensity = 120;
+        }
+
+        function triggerExplosion(pos, currentTime) {
             playExplosionSound();
             triggerShake(15);
+            spawnExplosionVisual(pos, CONFIG.rocketBlastRadius);
 
-            // Create explosion visual
-            explosions.push({
-                x: x,
-                y: y,
-                startTime: currentTime,
-                duration: 600,
-                maxRadius: CONFIG.rocketBlastRadius
-            });
-
-            // Damage all enemies in blast radius — rockets deal 2 HP damage
+            // Damage all enemies in blast radius: rockets deal 2 HP damage
             const killedChickens = [];
-            const damagedChickens = [];
             chickens.forEach(chicken => {
                 if (!chicken.isDead) {
-                    const cx = chicken.x + CONFIG.chickenWidth / 2;
-                    const cy = chicken.y + CONFIG.chickenHeight / 2;
-                    const dx = x - cx;
-                    const dy = y - cy;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist <= CONFIG.rocketBlastRadius) {
+                    const c = enemyCenter(chicken, new THREE.Vector3());
+                    if (c.distanceTo(pos) <= CONFIG.rocketBlastRadius) {
                         chicken.hp = (chicken.hp || 1) - 2;
                         if (chicken.hp <= 0) {
-                            chicken.isDead = true;
-                            chicken.deathTime = currentTime;
-                            chicken.image = chicken.deadImage || chickenDeadImage;
+                            killEnemy(chicken, currentTime, pos);
                             totalChickensHit++;
                             killedChickens.push(chicken);
                         } else {
-                            // Survived the blast — show damage
+                            // Survived the blast: show damage
                             chicken.damageFlash = currentTime;
-                            damagedChickens.push(chicken);
-                            const dcx = chicken.x + CONFIG.chickenWidth / 2;
-                            const dcy = chicken.y + CONFIG.chickenHeight / 2;
-                            spawnParticles(dcx, dcy, '#FF8800', 4, false);
-                            spawnFloatingText(dcx, dcy - 20, 'HIT!', '#FF8800', 18);
+                            spawnParticles(c, '#FF8800', 4, false);
+                            spawnFloatingText(c, 'HIT!', '#FF8800', 18);
                         }
                     }
                 }
@@ -1432,7 +1626,7 @@
 
             // Rocket launcher streak: must kill 2+ in one shot to maintain combo
             if (killCount >= 2) {
-                // Multi-kill — maintain/increment combo
+                // Multi-kill: maintain/increment combo
                 if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
                     multiplier += killCount;
                 } else {
@@ -1440,7 +1634,7 @@
                 }
                 lastHitTime = currentTime;
             } else {
-                // 0 or 1 kill — reset combo
+                // 0 or 1 kill: reset combo
                 multiplier = 1;
             }
 
@@ -1451,11 +1645,9 @@
                 if (doublePointsActive) points *= 2;
                 score += points;
 
-                const kcx = chicken.x + CONFIG.chickenWidth / 2;
-                const kcy = chicken.y + CONFIG.chickenHeight / 2;
-                spawnParticles(kcx, kcy, '#FF4444', 4, false);
-                spawnFloatingText(kcx, kcy - 20, '+' + points,
-                    chicken.isGolden ? '#FFD700' : '#FF6644', 22);
+                const c = enemyCenter(chicken, new THREE.Vector3());
+                spawnParticles(c, '#FF4444', 4, false);
+                spawnFloatingText(c, '+' + points, chicken.isGolden ? '#FFD700' : '#FF6644', 22);
 
                 if (multiplier >= 2) {
                     chicken.multiplierText = 'x' + multiplier;
@@ -1472,14 +1664,14 @@
             // Explosion particles
             const explosionColors = ['#FF4400', '#FF6600', '#FF8800', '#FFAA00', '#FFCC00', '#FFFFFF'];
             explosionColors.forEach(color => {
-                spawnParticles(x, y, color, 6, true);
+                spawnParticles(pos, color, 6, true, { speed: 1.6 });
             });
 
             // Big floating text for multi-kills
             if (killCount >= 3) {
-                spawnFloatingText(x, y - 40, killCount + ' KILLS!', '#FF4400', 32);
+                spawnFloatingText(pos.clone().setY(pos.y + 1.5), killCount + ' KILLS!', '#FF4400', 32);
             } else if (killCount >= 2) {
-                spawnFloatingText(x, y - 40, 'DOUBLE KILL!', '#FF6600', 28);
+                spawnFloatingText(pos.clone().setY(pos.y + 1.5), 'DOUBLE KILL!', '#FF6600', 28);
             }
         }
 
@@ -1487,82 +1679,83 @@
             const currentTime = Date.now();
             for (let i = explosions.length - 1; i >= 0; i--) {
                 const e = explosions[i];
-                if (currentTime - e.startTime > e.duration) {
+                const progress = (currentTime - e.startTime) / e.duration;
+                if (progress >= 1) {
+                    if (e.glowOnly) {
+                        scene.remove(e.glowOnly);
+                        e.glowOnly.material.dispose();
+                    } else {
+                        scene.remove(e.fireball, e.ring, e.glow);
+                        e.fireball.material.dispose();
+                        e.ring.material.dispose();
+                        e.glow.material.dispose();
+                    }
                     explosions.splice(i, 1);
+                    continue;
                 }
-            }
-        }
-
-        function drawExplosions() {
-            const currentTime = Date.now();
-            explosions.forEach(e => {
-                const elapsed = currentTime - e.startTime;
-                const progress = elapsed / e.duration;
-                if (progress > 1) return;
-
-                const radius = e.maxRadius * Math.min(progress * 2, 1);
                 const alpha = 1 - progress;
-
-                ctx.save();
-
-                // Outer glow
-                const gradient = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, radius);
-                gradient.addColorStop(0, `rgba(255, 255, 200, ${alpha * 0.8})`);
-                gradient.addColorStop(0.3, `rgba(255, 150, 0, ${alpha * 0.6})`);
-                gradient.addColorStop(0.6, `rgba(255, 60, 0, ${alpha * 0.3})`);
-                gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(e.x, e.y, radius, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Shockwave ring
-                if (progress < 0.5) {
-                    const ringProgress = progress * 2;
-                    const ringRadius = e.maxRadius * ringProgress * 1.2;
-                    ctx.strokeStyle = `rgba(255, 200, 100, ${(1 - ringProgress) * 0.5})`;
-                    ctx.lineWidth = 3 * (1 - ringProgress);
-                    ctx.beginPath();
-                    ctx.arc(e.x, e.y, ringRadius, 0, Math.PI * 2);
-                    ctx.stroke();
+                if (e.glowOnly) {
+                    e.glowOnly.material.opacity = alpha;
+                    continue;
                 }
-
-                ctx.restore();
-            });
+                const radius = e.maxRadius * Math.min(progress * 2.2, 1);
+                e.fireball.scale.setScalar(Math.max(0.01, radius * 0.75));
+                e.fireball.material.opacity = 0.9 * alpha * alpha;
+                e.fireball.material.color.setHSL(0.09 - progress * 0.08, 1, 0.6 - progress * 0.25);
+                const ringR = e.maxRadius * Math.min(1.2, progress * 2.4);
+                e.ring.scale.setScalar(Math.max(0.01, ringR));
+                e.ring.material.opacity = 0.7 * Math.max(0, 1 - progress * 2);
+                e.glow.material.opacity = alpha;
+            }
+            flashLight.intensity *= 0.86;
         }
 
-        // ========== WEAPON HELPER: KILL CHICKEN ==========
-        // Machine gun bullets deal 1 damage — hornets need 2 hits
+        // ========== DAMAGE / KILL ==========
+        // Machine gun bullets deal 1 damage: hornets need 2 hits
         function hitChickenWithBullet(chicken, currentTime) {
             chicken.hp = (chicken.hp || 1) - 1;
             if (chicken.hp > 0) {
-                // Not dead yet — show damage feedback
-                hitSound.currentTime = 0;
-                hitSound.play();
-                const cx = chicken.x + CONFIG.chickenWidth / 2;
-                const cy = chicken.y + CONFIG.chickenHeight / 2;
-                spawnParticles(cx, cy, '#FFAA00', 3, false);
-                spawnFloatingText(cx, cy - 20, 'HIT!', '#FFAA00', 16);
-                // Brief flash effect
+                // Not dead yet: show damage feedback
+                playSfx(hitSound);
+                const c = enemyCenter(chicken, new THREE.Vector3());
+                spawnParticles(c, '#FFAA00', 3, false);
+                spawnFloatingText(c, 'HIT!', '#FFAA00', 16);
                 chicken.damageFlash = currentTime;
                 return;
             }
-            // HP depleted — kill it
+            // HP depleted: kill it
             killChickenWithWeapon(chicken, currentTime);
         }
 
-        function killChickenWithWeapon(chicken, currentTime) {
-            if (chicken.isGolden) {
-                playGoldenHitSound();
-            }
-            hitSound.currentTime = 0;
-            hitSound.play();
-
+        // Switch a creature to its death animation (knocked away from `from`)
+        function killEnemy(chicken, currentTime, from) {
             chicken.isDead = true;
             chicken.deathTime = currentTime;
-            chicken.image = chicken.deadImage || chickenDeadImage;
-            totalChickensHit++;
+            const c = enemyCenter(chicken, new THREE.Vector3());
+            const push = from ? c.clone().sub(from).setY(0) : new THREE.Vector3((Math.random() - 0.5), 0, (Math.random() - 0.5));
+            if (push.lengthSq() < 1e-4) push.set(Math.random() - 0.5, 0, Math.random() - 0.5);
+            push.normalize().multiplyScalar(from ? 4 : 1.5);
+            chicken.deathVel = new THREE.Vector3(push.x, chicken.type.fly ? 1 : 4.5, push.z);
+            chicken.deathSpin = (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 4);
+            chicken.group.userData.materials.forEach(m => {
+                m.transparent = true;
+                m.depthWrite = true;
+            });
+            if (chicken.crown) chicken.crown.visible = false;
+            if (chicken.glow) chicken.glow.visible = false;
+        }
 
+        function featherColorsFor(chicken) {
+            if (chicken.isGolden) return ['#FFD700', '#FFA500', '#FFEC8B', '#FFE4B5'];
+            switch (chicken.enemyType) {
+                case 'crab': return ['#E2462C', '#F6C08A', '#B3301E', '#FFFFFF'];
+                case 'hornet': return ['#F7C21C', '#1C1A17', '#D8F0FF', '#F7C21C'];
+                case 'dragon': return ['#6B2FA3', '#F0B04A', '#B0406A', '#FF6A00'];
+                default: return ['#FFFFFF', '#F5DEB3', '#DEB887', '#CD853F'];
+            }
+        }
+
+        function awardKill(chicken, currentTime) {
             // Update combo
             if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
                 multiplier++;
@@ -1579,20 +1772,14 @@
             updateScore();
 
             // Visual feedback
-            const cx = chicken.x + CONFIG.chickenWidth / 2;
-            const cy = chicken.y + CONFIG.chickenHeight / 2;
-
-            const featherColors = chicken.isGolden
-                ? ['#FFD700', '#FFA500', '#FFEC8B', '#FFE4B5']
-                : ['#FFFFFF', '#F5DEB3', '#DEB887', '#CD853F'];
-            featherColors.forEach(color => {
-                spawnParticles(cx, cy, color, 3, chicken.isGolden);
+            const c = enemyCenter(chicken, new THREE.Vector3());
+            featherColorsFor(chicken).forEach(color => {
+                spawnParticles(c, color, 3, chicken.isGolden);
             });
 
-            let scoreText = '+' + points;
             const textColor = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
             const textSize = chicken.isGolden ? 32 : (20 + Math.min(multiplier * 2, 16));
-            spawnFloatingText(cx, cy - 20, scoreText, textColor, textSize);
+            spawnFloatingText(c, '+' + points, textColor, textSize);
 
             if (multiplier >= 2) {
                 chicken.multiplierText = 'x' + multiplier;
@@ -1605,8 +1792,18 @@
                 triggerShake(multiplier);
             }
             if (multiplier >= 8) {
-                spawnParticles(cx, cy, getComboColor(multiplier), 8, true);
+                spawnParticles(c, getComboColor(multiplier), 8, true);
             }
+        }
+
+        function killChickenWithWeapon(chicken, currentTime) {
+            if (chicken.isGolden) {
+                playGoldenHitSound();
+            }
+            playSfx(hitSound);
+            killEnemy(chicken, currentTime, currentWeapon === 'hammer' ? null : getMuzzle(currentWeapon));
+            totalChickensHit++;
+            awardKill(chicken, currentTime);
         }
 
         // ========== WEAPON SWITCHING ==========
@@ -1625,6 +1822,7 @@
 
             // Update weapon selector UI
             updateWeaponSelectorUI();
+            refreshWeaponVisibility();
         }
 
         function updateWeaponSelectorUI() {
@@ -1675,9 +1873,9 @@
             const hintEl = container.querySelector('.unlock-hint');
 
             const weaponInfo = {
-                machinegun: { name: 'MACHINE GUN', icon: '\uD83D\uDD2B', key: '2' },
-                rocket: { name: 'ROCKET LAUNCHER', icon: '\uD83D\uDE80', key: '3' },
-                laser: { name: 'LASER CANNON', icon: '\u26A1', key: '4' }
+                machinegun: { name: 'MACHINE GUN', icon: '🔫', key: '2' },
+                rocket: { name: 'ROCKET LAUNCHER', icon: '🚀', key: '3' },
+                laser: { name: 'LASER CANNON', icon: '⚡', key: '4' }
             };
 
             const info = weaponInfo[weapon];
@@ -1706,7 +1904,7 @@
         }
 
         function handleKeyDown(event) {
-            if (isGameOver) return;
+            if (isGameOver || !gameRunning) return;
             switch (event.key) {
                 case '1':
                     switchWeapon('hammer');
@@ -1725,53 +1923,50 @@
 
         // ========== POWER-UP SYSTEM ==========
         const POWERUP_TYPES = {
-            FREEZE: {
-                name: 'FREEZE',
-                icon: '\u2744',  // snowflake
-                color: '#00BFFF',
-                bgColor: 'rgba(0, 191, 255, 0.3)',
-                borderColor: '#00BFFF'
-            },
-            BOMB: {
-                name: 'BOMB',
-                icon: '\uD83D\uDCA3',  // bomb
-                color: '#FF4444',
-                bgColor: 'rgba(255, 68, 68, 0.3)',
-                borderColor: '#FF4444'
-            },
-            DOUBLE: {
-                name: 'DOUBLE',
-                icon: '\u00D72',  // x2
-                color: '#FFD700',
-                bgColor: 'rgba(255, 215, 0, 0.3)',
-                borderColor: '#FFD700'
-            }
+            FREEZE: { name: 'FREEZE', model: 'powerup_freeze', color: '#00BFFF' },
+            BOMB: { name: 'BOMB', model: 'powerup_bomb', color: '#FF4444' },
+            DOUBLE: { name: 'DOUBLE', model: 'powerup_double', color: '#FFD700' },
         };
 
-        function spawnPowerUp() {
+        function spawnPowerUp(forcedType) {
             const currentTime = Date.now();
-            if (currentTime - lastPowerUpSpawn < powerUpSpawnCooldown) return;
+            if (!forcedType && currentTime - lastPowerUpSpawn < powerUpSpawnCooldown) return;
             if (powerUps.length >= 2) return; // Max 2 power-ups on screen
 
             const types = Object.keys(POWERUP_TYPES);
-            const type = POWERUP_TYPES[types[Math.floor(Math.random() * types.length)]];
-            const x = 40 + Math.random() * (canvas.width - 80);
-            const y = canvas.height * 0.55 + Math.random() * (canvas.height * 0.35);
+            const type = forcedType || POWERUP_TYPES[types[Math.floor(Math.random() * types.length)]];
+            // Spawn in the front half of the field, close to the player
+            const x = (Math.random() * 2 - 1) * (CONFIG.arenaHalfWidth - 1.5);
+            const z = Math.random() * (CONFIG.arenaHalfDepth - 1.2);
+
+            const group = new THREE.Group();
+            const model = instantiate(type.model);
+            model.scale.setScalar(1.25);
+            const halo = makeGlow(type.color, 2.6, 0.8);
+            group.add(model, halo);
+            group.position.set(x, 1, z);
+            group.scale.setScalar(0.01);
+            scene.add(group);
 
             powerUps.push({
-                x: x,
-                y: y,
-                type: type,
+                group, model, halo, type,
                 spawnTime: currentTime,
                 lifetime: 6000, // 6 seconds to grab it
                 bobOffset: Math.random() * Math.PI * 2,
-                pulse: 0
             });
 
             lastPowerUpSpawn = currentTime;
         }
 
-        function updatePowerUps() {
+        function removePowerUp(i) {
+            const pu = powerUps[i];
+            scene.remove(pu.group);
+            disposeInstance(pu.model);
+            pu.halo.material.dispose();
+            powerUps.splice(i, 1);
+        }
+
+        function updatePowerUps(dt) {
             const currentTime = Date.now();
 
             // Update active power-up timers
@@ -1785,17 +1980,33 @@
             // Remove expired power-ups
             for (let i = powerUps.length - 1; i >= 0; i--) {
                 if (currentTime - powerUps[i].spawnTime > powerUps[i].lifetime) {
-                    powerUps.splice(i, 1);
+                    removePowerUp(i);
                 }
             }
 
             // Try to spawn new power-ups periodically
-            if (Math.random() < 0.005 && currentWave >= 2) {
+            if (Math.random() < 0.005 * dt * 60 && currentWave >= 2) {
                 spawnPowerUp();
             }
 
             // Update power-up status display
             updatePowerUpStatusDisplay();
+            document.getElementById('freezeOverlay').style.opacity = freezeActive ? 1 : 0;
+        }
+
+        function animatePowerUps(time) {
+            const currentTime = Date.now();
+            powerUps.forEach(pu => {
+                const elapsed = currentTime - pu.spawnTime;
+                const remaining = pu.lifetime - elapsed;
+                const grow = Math.min(1, elapsed / 250);
+                const pulse = 1 + Math.sin(currentTime / 200) * 0.08;
+                pu.group.scale.setScalar(grow * pulse);
+                pu.group.position.y = 1.0 + Math.sin(currentTime / 300 + pu.bobOffset) * 0.25;
+                pu.model.rotation.y = time * 2.2;
+                // Flash when about to expire
+                pu.group.visible = remaining > 2000 || Math.sin(currentTime / 60) > -0.3;
+            });
         }
 
         function updatePowerUpStatusDisplay() {
@@ -1803,71 +2014,27 @@
             let html = '';
             if (freezeActive) {
                 const remaining = Math.ceil((freezeEndTime - Date.now()) / 1000);
-                html += `<span class="powerup-active" style="background:rgba(0,191,255,0.3);color:#00BFFF;border:2px solid #00BFFF;">\u2744 FROZEN ${remaining}s</span>`;
+                html += `<span class="powerup-active" style="background:rgba(0,191,255,0.3);color:#00BFFF;border:2px solid #00BFFF;">❄ FROZEN ${remaining}s</span>`;
             }
             if (doublePointsActive) {
                 const remaining = Math.ceil((doublePointsEndTime - Date.now()) / 1000);
-                html += `<span class="powerup-active" style="background:rgba(255,215,0,0.3);color:#FFD700;border:2px solid #FFD700;">\u00D72 DOUBLE ${remaining}s</span>`;
+                html += `<span class="powerup-active" style="background:rgba(255,215,0,0.3);color:#FFD700;border:2px solid #FFD700;">×2 DOUBLE ${remaining}s</span>`;
             }
-            container.innerHTML = html;
-        }
-
-        function drawPowerUps() {
-            const currentTime = Date.now();
-            powerUps.forEach(pu => {
-                const elapsed = currentTime - pu.spawnTime;
-                const remaining = pu.lifetime - elapsed;
-                const bobY = Math.sin(currentTime / 300 + pu.bobOffset) * 5;
-                const pulse = 1 + Math.sin(currentTime / 200) * 0.1;
-
-                ctx.save();
-
-                // Flash when about to expire
-                if (remaining < 2000) {
-                    ctx.globalAlpha = 0.5 + Math.sin(currentTime / 100) * 0.5;
-                }
-
-                const size = CONFIG.powerUpSize * pulse;
-
-                // Glow effect
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = pu.type.color;
-
-                // Background circle
-                ctx.fillStyle = pu.type.bgColor;
-                ctx.beginPath();
-                ctx.arc(pu.x, pu.y + bobY, size * 0.7, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Border
-                ctx.strokeStyle = pu.type.color;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                // Icon
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = pu.type.color;
-                ctx.font = `bold ${size * 0.6}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(pu.type.icon, pu.x, pu.y + bobY);
-
-                ctx.restore();
-            });
+            if (container.innerHTML !== html) container.innerHTML = html;
         }
 
         function checkPowerUpCollision() {
+            raycaster.setFromCamera(pointer, camera);
             for (let i = powerUps.length - 1; i >= 0; i--) {
                 const pu = powerUps[i];
-                const dx = mouseX - pu.x;
-                const dy = mouseY - pu.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < CONFIG.powerUpSize) {
+                tmpSphere.center.copy(pu.group.position);
+                tmpSphere.radius = CONFIG.powerUpRadius * (lastPointerType === 'touch' ? 1.3 : 1);
+                if (raycaster.ray.intersectsSphere(tmpSphere)) {
                     activatePowerUp(pu.type);
                     // Spawn grab particles
-                    spawnParticles(pu.x, pu.y, pu.type.color, 8, false);
-                    spawnFloatingText(pu.x, pu.y - 20, pu.type.name + '!', pu.type.color, 28);
-                    powerUps.splice(i, 1);
+                    spawnParticles(pu.group.position, pu.type.color, 10, true);
+                    spawnFloatingText(pu.group.position, pu.type.name + '!', pu.type.color, 28);
+                    removePowerUp(i);
                     return true;
                 }
             }
@@ -1882,31 +2049,29 @@
                     freezeEndTime = currentTime + CONFIG.freezeDuration;
                     playFreezeSound();
                     break;
-                case 'BOMB':
-                    // Kill all live chickens on screen (force kill regardless of HP)
+                case 'BOMB': {
+                    // Kill all live creatures on the field (force kill regardless of HP)
                     playBombSound();
                     triggerShake(12);
+                    spawnExplosionVisual(new THREE.Vector3(0, 0.5, 0), CONFIG.arenaHalfWidth, 900);
                     let bombKills = 0;
                     chickens.forEach(chicken => {
                         if (!chicken.isDead) {
                             chicken.hp = 0;
-                            chicken.isDead = true;
-                            chicken.deathTime = currentTime;
-                            chicken.image = chicken.deadImage || chickenDeadImage;
+                            killEnemy(chicken, currentTime, new THREE.Vector3(0, 0, 0));
                             bombKills++;
                             totalChickensHit++;
                             // Particles for each kill
-                            const cx = chicken.x + CONFIG.chickenWidth / 2;
-                            const cy = chicken.y + CONFIG.chickenHeight / 2;
-                            spawnParticles(cx, cy, '#FF4444', 6, false);
+                            spawnParticles(enemyCenter(chicken, new THREE.Vector3()), '#FF4444', 6, false);
                         }
                     });
                     score += bombKills * multiplier;
                     if (bombKills > 0) {
-                        spawnFloatingText(canvas.width / 2, canvas.height / 2, 'BOOM! +' + (bombKills * multiplier), '#FF4444', 36);
+                        spawnFloatingText(new THREE.Vector3(0, 2, 0), 'BOOM! +' + (bombKills * multiplier), '#FF4444', 36);
                     }
                     updateScore();
                     break;
+                }
                 case 'DOUBLE':
                     doublePointsActive = true;
                     doublePointsEndTime = currentTime + CONFIG.doublePointsDuration;
@@ -1916,6 +2081,19 @@
         }
 
         // ========== WAVE SYSTEM ==========
+        function switchMusic(next, fallbackRate) {
+            [backgroundMusic, actionMusicMedium, actionMusicIntense, actionMusicEpic].forEach(a => {
+                if (a !== next) a.pause();
+            });
+            const playPromise = next.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                    backgroundMusic.playbackRate = fallbackRate;
+                    backgroundMusic.play().catch(() => {});
+                });
+            }
+        }
+
         function updateWaveSystem() {
             const elapsed = Date.now() - startTime;
             const newWave = Math.floor(elapsed / CONFIG.waveInterval) + 1;
@@ -1924,48 +2102,26 @@
                 announceWave(currentWave);
                 applyWaveDifficulty();
             }
-            document.getElementById('waveDisplay').innerText = 'Wave ' + currentWave;
+            const waveText = 'Wave ' + currentWave;
+            const waveEl = document.getElementById('waveDisplay');
+            if (waveEl.innerText !== waveText) waveEl.innerText = waveText;
 
             // At wave 4, switch to medium action music (crab + machine gun intro)
             if (currentWave > 3 && backgroundMusicStarted && !mediumMusicTriggered) {
                 mediumMusicTriggered = true;
-                backgroundMusic.pause();
-                const playPromise = actionMusicMedium.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(() => {
-                        backgroundMusic.playbackRate = 1.15;
-                        backgroundMusic.play();
-                    });
-                }
+                switchMusic(actionMusicMedium, 1.15);
             }
 
             // At wave 6, switch to intense action music (hornet + rocket launcher intro)
             if (currentWave > 5 && backgroundMusicStarted && !intenseMusicTriggered) {
                 intenseMusicTriggered = true;
-                actionMusicMedium.pause();
-                backgroundMusic.pause();
-                const playPromise = actionMusicIntense.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(() => {
-                        backgroundMusic.playbackRate = 1.35;
-                        backgroundMusic.play();
-                    });
-                }
+                switchMusic(actionMusicIntense, 1.35);
             }
 
             // At wave 8, switch to epic action music (dragon + laser cannon intro)
             if (currentWave > 7 && backgroundMusicStarted && !epicMusicTriggered) {
                 epicMusicTriggered = true;
-                actionMusicIntense.pause();
-                actionMusicMedium.pause();
-                backgroundMusic.pause();
-                const playPromise = actionMusicEpic.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(() => {
-                        backgroundMusic.playbackRate = 1.5;
-                        backgroundMusic.play();
-                    });
-                }
+                switchMusic(actionMusicEpic, 1.5);
             }
         }
 
@@ -2020,42 +2176,6 @@
             }
         }
 
-        // ========== GOLDEN CHICKEN ==========
-        function createGoldenChicken(chicken) {
-            chicken.isGolden = true;
-            // Golden chickens are faster
-            chicken.dx *= 1.5;
-            chicken.dy *= 1.3;
-            return chicken;
-        }
-
-        function drawGoldenGlow(chicken) {
-            if (!chicken.isGolden || chicken.isDead) return;
-            ctx.save();
-            const cx = chicken.x + CONFIG.chickenWidth / 2;
-            const cy = chicken.y + CONFIG.chickenHeight / 2;
-            const pulse = 1 + Math.sin(Date.now() / 150) * 0.3;
-            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, CONFIG.chickenWidth * pulse);
-            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
-            gradient.addColorStop(0.5, 'rgba(255, 215, 0, 0.15)');
-            gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(cx, cy, CONFIG.chickenWidth * pulse, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-
-        function drawGoldenTint(chicken) {
-            // Draw golden overlay on the chicken
-            ctx.save();
-            ctx.globalAlpha = 0.35 + Math.sin(Date.now() / 200) * 0.15;
-            ctx.globalCompositeOperation = 'source-atop';
-            ctx.fillStyle = '#FFD700';
-            ctx.fillRect(chicken.x, chicken.y, CONFIG.chickenWidth, CONFIG.chickenHeight);
-            ctx.restore();
-        }
-
         // ========== COMBO SYSTEM VISUALS ==========
         function getComboColor(mult) {
             if (mult >= 10) return '#FF0000';      // Red fire
@@ -2074,6 +2194,29 @@
             return '';
         }
 
+        function drawComboMeter() {
+            const meter = document.getElementById('comboMeter');
+            const comboRemaining = Math.max(0, 1 - (Date.now() - lastHitTime) / CONFIG.comboTimeLimit);
+            if (!gameRunning || multiplier < 2 || comboRemaining <= 0) {
+                meter.style.display = 'none';
+                return;
+            }
+            const color = getComboColor(multiplier);
+            meter.style.display = 'block';
+            const value = document.getElementById('comboValue');
+            value.textContent = 'x' + multiplier;
+            value.style.color = color;
+            value.style.fontSize = Math.min(20 + multiplier * 2, 40) + 'px';
+            value.style.textShadow = `0 0 10px ${color}, 2px 2px 3px #000`;
+            value.style.transform = `scale(${1 + Math.sin(Date.now() / 100) * 0.05 * Math.min(multiplier, 8)})`;
+            const label = document.getElementById('comboLabel');
+            label.textContent = getComboLabel(multiplier);
+            label.style.color = color;
+            const bar = document.getElementById('comboBar');
+            bar.style.width = (comboRemaining * 100) + '%';
+            bar.style.background = color;
+        }
+
         // ========== DANGER BAR ==========
         function updateDangerBar() {
             const liveChickens = chickens.filter(c => !c.isDead).length;
@@ -2083,7 +2226,6 @@
 
             // Pulse the bar when danger is high
             if (percentage > 70) {
-                bar.style.animation = 'none';
                 bar.style.background = `linear-gradient(90deg, #ff0000, #ff4444)`;
                 document.getElementById('dangerBarContainer').style.borderColor =
                     Math.sin(Date.now() / 100) > 0 ? '#ff0000' : '#fff';
@@ -2093,83 +2235,38 @@
             }
         }
 
-        // ========== FREEZE VISUAL OVERLAY ==========
-        function drawFreezeOverlay() {
+        // ========== SNOW (freeze power-up) ==========
+        const SNOW_COUNT = 400;
+        const snowGeo = new THREE.BufferGeometry();
+        const snowPos = new Float32Array(SNOW_COUNT * 3);
+        for (let i = 0; i < SNOW_COUNT; i++) {
+            snowPos[i * 3] = (Math.random() * 2 - 1) * 16;
+            snowPos[i * 3 + 1] = Math.random() * 12;
+            snowPos[i * 3 + 2] = (Math.random() * 2 - 1) * 11;
+        }
+        snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+        const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+            map: glowTex, size: 0.35, transparent: true, depthWrite: false, color: 0xeaf7ff,
+        }));
+        snow.visible = false;
+        scene.add(snow);
+
+        function updateSnow(dt) {
+            snow.visible = freezeActive;
             if (!freezeActive) return;
-            ctx.save();
-            ctx.fillStyle = 'rgba(100, 200, 255, 0.08)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Draw some snowflake particles
-            const t = Date.now();
-            ctx.fillStyle = 'rgba(200, 230, 255, 0.4)';
-            for (let i = 0; i < 15; i++) {
-                const x = ((t / 20 + i * 97) % canvas.width);
-                const y = ((t / (15 + i * 3) + i * 53) % canvas.height);
-                ctx.font = '16px Arial';
-                ctx.fillText('\u2744', x, y);
+            const arr = snowGeo.attributes.position.array;
+            for (let i = 0; i < SNOW_COUNT; i++) {
+                arr[i * 3 + 1] -= dt * (1.2 + (i % 5) * 0.3);
+                arr[i * 3] += Math.sin(i + Date.now() / 700) * dt * 0.3;
+                if (arr[i * 3 + 1] < 0) arr[i * 3 + 1] = 12;
             }
-            ctx.restore();
+            snowGeo.attributes.position.needsUpdate = true;
         }
 
-        // ========== MAIN GAME FUNCTIONS ==========
-
-        function init() {
-            loadHighScore();
-
-            // Start screen
-            document.getElementById('startButton').addEventListener('click', startGame);
-            document.getElementById('restartButton').addEventListener('click', restartGame);
-        }
-
-        function startGame() {
-            document.getElementById('startScreen').style.display = 'none';
-            canvas.style.cursor = 'none';
-
-            // Wait for images to load
-            let imagesLoaded = 0;
-            const totalImages = 4;
-            function imageLoaded() {
-                imagesLoaded++;
-                if (imagesLoaded === totalImages) {
-                    beginGame();
-                }
-            }
-
-            // Check if images are already loaded (cached)
-            [chickenImage, chickenDeadImage, hammerOffImage, hammerOnImage].forEach(img => {
-                if (img.complete) {
-                    imageLoaded();
-                } else {
-                    img.onload = imageLoaded;
-                }
-            });
-        }
-
-        function beginGame() {
-            startTime = Date.now();
-            lastPowerUpSpawn = Date.now();
-            lastWaveTime = Date.now();
-            currentWave = 1;
-
-            // Show weapon bar and wave 1 announcement
-            document.getElementById('weaponBar').style.display = 'flex';
-            setTimeout(() => announceWave(1), 500);
-
-            spawnChicken();
-            canvas.addEventListener('mousedown', hammerDown);
-            canvas.addEventListener('mouseup', hammerUp);
-            canvas.addEventListener('mousemove', updateMousePosition);
-            canvas.addEventListener('touchstart', hammerDown);
-            canvas.addEventListener('touchend', hammerUp);
-            canvas.addEventListener('touchmove', updateTouchPosition);
-            document.addEventListener('keydown', handleKeyDown);
-
-            lastFrameTime = Date.now();
-            update();
-        }
-
-        let lastFrameTime = 0;
+        // =====================================================================
+        // ========== CREATURES ==========
+        // =====================================================================
+        const GOLD = new THREE.Color(0xffc81e);
 
         // Determine enemy type based on current wave
         function getEnemyType() {
@@ -2186,50 +2283,87 @@
             return 'chicken';
         }
 
-        function getEnemyAssets(type) {
-            switch (type) {
-                case 'crab':
-                    return { image: crabImage, deadImage: crabDeadImage, hp: 1 };
-                case 'hornet':
-                    return { image: hornetImage, deadImage: hornetDeadImage, hp: 2 };
-                case 'dragon':
-                    return { image: dragonImage, deadImage: dragonDeadImage, hp: 4 };
-                default:
-                    return { image: chickenImage, deadImage: chickenDeadImage, hp: 1 };
-            }
+        function createCreature(enemyType, x, z) {
+            const type = ENEMY_TYPES[enemyType];
+            const group = new THREE.Group();
+            const model = instantiate(type.model);
+            model.scale.setScalar(type.scale);
+            group.add(model);
+            group.userData.materials = model.userData.materials;
+            const altitude = type.fly ? type.alt[0] + Math.random() * (type.alt[1] - type.alt[0]) : 0;
+            group.position.set(x, altitude, z);
+            scene.add(group);
+
+            const parts = {};
+            ['Body', 'Head', 'Tail', 'WingL', 'WingR', 'LegL', 'LegR', 'LegsL', 'LegsR', 'ClawL', 'ClawR']
+                .forEach(n => { parts[n] = model.getObjectByName(n) || null; });
+
+            return {
+                group, model, parts, type, enemyType,
+                altitude,
+                phase: Math.random() * 100,
+                yaw: Math.random() * Math.PI * 2,
+                isDead: false,
+                deathTime: 0,
+                opacity: 1.0,
+                multiplierText: null,
+                isGolden: false,
+                entryScale: 0,  // For spawn animation
+                hp: type.hp,
+                maxHp: type.hp,
+                hpEl: null,
+                textEl: null,
+            };
+        }
+
+        function makeGolden(chicken) {
+            chicken.isGolden = true;
+            // Golden chickens are faster
+            chicken.dx *= 1.5;
+            chicken.dy *= 1.3;
+            chicken.group.userData.materials.forEach(m => {
+                if (/Eye/.test(m.name)) return;
+                m.color.lerp(GOLD, 0.8);
+                m.metalness = 0.85;
+                m.roughness = 0.25;
+            });
+            chicken.crown = instantiate('crown');
+            chicken.crown.scale.setScalar(1.3);
+            chicken.group.add(chicken.crown);
+            chicken.glow = makeGlow(0xffd700, 2.8, 0.55);
+            chicken.glow.position.y = 0.85;
+            chicken.group.add(chicken.glow);
+        }
+
+        function removeCreature(chicken) {
+            scene.remove(chicken.group);
+            disposeInstance(chicken.model);
+            if (chicken.crown) disposeInstance(chicken.crown);
+            if (chicken.glow) chicken.glow.material.dispose();
+            if (chicken.hpEl) chicken.hpEl.remove();
+            if (chicken.textEl) chicken.textEl.remove();
+        }
+
+        function randomArenaPoint() {
+            return {
+                x: (Math.random() * 2 - 1) * (CONFIG.arenaHalfWidth - 1),
+                z: (Math.random() * 2 - 1) * (CONFIG.arenaHalfDepth - 1),
+            };
         }
 
         // Spawn enemies at random positions
         function spawnChicken() {
-            if (isGameOver) return;
+            if (isGameOver || !gameRunning) return;
             const liveChickens = chickens.filter(c => !c.isDead).length;
             if (liveChickens < CONFIG.maxChickens) {
-                const x = Math.random() * (canvas.width - CONFIG.chickenWidth);
-                const y = Math.random() * ((canvas.height - CONFIG.chickenHeight) / 2) + (canvas.height / 2);
+                const p = randomArenaPoint();
                 const directionX = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * chickenSpeed + 1);
                 const directionY = -((Math.random() * chickenSpeed) + 1);
 
                 const enemyType = getEnemyType();
-                const assets = getEnemyAssets(enemyType);
-
-                const chicken = {
-                    x: x,
-                    y: y,
-                    dx: directionX,
-                    dy: directionY,
-                    isDead: false,
-                    deathTime: 0,
-                    image: assets.image,
-                    deadImage: assets.deadImage,
-                    opacity: 1.0,
-                    multiplierText: null,
-                    textOpacity: 1.0,
-                    isGolden: false,
-                    entryScale: 0,  // For spawn animation
-                    enemyType: enemyType,
-                    hp: assets.hp,
-                    maxHp: assets.hp
-                };
+                const chicken = createCreature(enemyType, p.x, p.z);
+                chicken.dx = directionX;
+                chicken.dy = directionY;
 
                 // Hornets move a bit faster
                 if (enemyType === 'hornet') {
@@ -2245,10 +2379,12 @@
 
                 // Chance for golden chicken (only regular chickens)
                 if (enemyType === 'chicken' && Math.random() < CONFIG.goldenChickenChance) {
-                    createGoldenChicken(chicken);
+                    makeGolden(chicken);
                 }
 
+                chicken.yaw = Math.atan2(chicken.dx, chicken.dy);
                 chickens.push(chicken);
+                spawnParticles(new THREE.Vector3(p.x, 0.2, p.z), '#e8dcc0', 8, false, { speed: 0.5, flat: true, gravity: 2 });
             } else {
                 endGame();
                 return;
@@ -2256,402 +2392,359 @@
             spawnTimeoutId = setTimeout(spawnChicken, spawnInterval);
         }
 
-        // Main game update loop
-        function update() {
-            if (isGameOver) return;
-
-            const now = Date.now();
-            const dt = now - lastFrameTime;
-            lastFrameTime = now;
-
-            clearCanvas();
-
-            // Apply screen shake
-            updateShake(dt);
-            ctx.save();
-            ctx.translate(shakeOffsetX, shakeOffsetY);
-
-            updateWaveSystem();
-            updatePowerUps();
-            moveChickens();
-            updateBullets();
-            updateRockets();
-            updateExplosions();
-            drawPowerUps();
-            drawChickens();
-            drawBullets();
-            drawRockets();
-            drawLaserBeam();
-            drawExplosions();
-            drawParticles();
-            updateParticles();
-            drawFloatingTexts();
-            updateFloatingTexts();
-            drawFreezeOverlay();
-            drawComboMeter();
-            drawHammer();
-            updateRocketCooldownUI();
-
-            ctx.restore();
-
-            updateDangerBar();
-
-            requestAnimationFrame(update);
+        // Procedural animation of the named parts exported from Blender
+        function animateCreature(chicken, t, moving) {
+            const p = chicken.parts;
+            const k = moving ? 1 : 0.15;
+            switch (chicken.enemyType) {
+                case 'chicken': {
+                    const step = t * 12;
+                    chicken.model.position.y = Math.abs(Math.sin(step)) * 0.12 * k;
+                    if (p.LegL) p.LegL.rotation.x = Math.sin(step) * 0.7 * k;
+                    if (p.LegR) p.LegR.rotation.x = -Math.sin(step) * 0.7 * k;
+                    if (p.WingL) p.WingL.rotation.z = -0.1 - Math.abs(Math.sin(t * 9)) * 0.45 * k;
+                    if (p.WingR) p.WingR.rotation.z = 0.1 + Math.abs(Math.sin(t * 9)) * 0.45 * k;
+                    if (p.Head) p.Head.rotation.x = Math.max(0, Math.sin(t * 3.1)) * 0.5 - 0.1;
+                    chicken.model.rotation.z = Math.sin(step) * 0.08 * k;
+                    break;
+                }
+                case 'crab': {
+                    const step = t * 16;
+                    if (p.LegsL) p.LegsL.rotation.z = Math.sin(step) * 0.25 * k;
+                    if (p.LegsR) p.LegsR.rotation.z = Math.sin(step + Math.PI) * 0.25 * k;
+                    if (p.ClawL) p.ClawL.rotation.x = Math.sin(t * 5) * 0.35;
+                    if (p.ClawR) p.ClawR.rotation.x = Math.sin(t * 5 + 1.5) * 0.35;
+                    chicken.model.position.y = Math.abs(Math.sin(step)) * 0.05 * k;
+                    break;
+                }
+                case 'hornet': {
+                    const flap = Math.sin(t * 70) * 0.7;
+                    if (p.WingL) p.WingL.rotation.z = flap;
+                    if (p.WingR) p.WingR.rotation.z = -flap;
+                    if (p.Tail) p.Tail.rotation.x = Math.sin(t * 4) * 0.2;
+                    if (p.LegsL) p.LegsL.rotation.z = Math.sin(t * 6) * 0.2;
+                    if (p.LegsR) p.LegsR.rotation.z = -Math.sin(t * 6) * 0.2;
+                    chicken.model.position.y = Math.sin(t * 5) * 0.12;
+                    break;
+                }
+                case 'dragon': {
+                    const flap = Math.sin(t * 5);
+                    if (p.WingL) p.WingL.rotation.z = flap * 0.7;
+                    if (p.WingR) p.WingR.rotation.z = -flap * 0.7;
+                    if (p.Tail) p.Tail.rotation.y = Math.sin(t * 2.2) * 0.35;
+                    if (p.Head) p.Head.rotation.x = Math.sin(t * 1.7) * 0.15;
+                    chicken.model.position.y = -flap * 0.18;
+                    break;
+                }
+            }
         }
 
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Emissive tint for hit flash, freeze and golden glow
+        const TINT_RED = new THREE.Color(0xff2200);
+        const TINT_ICE = new THREE.Color(0x1e7fff);
+        const TINT_GOLD = new THREE.Color(0xffaa00);
+        function applyTint(chicken, now) {
+            let tint = null;
+            let strength = 0;
+            if (chicken.damageFlash && now - chicken.damageFlash < 200) {
+                tint = TINT_RED;
+                strength = 0.6 + Math.sin((now - chicken.damageFlash) / 30) * 0.4;
+            } else if (freezeActive && !chicken.isDead) {
+                tint = TINT_ICE;
+                strength = 0.55;
+            } else if (chicken.isGolden && !chicken.isDead) {
+                tint = TINT_GOLD;
+                strength = 0.25 + Math.sin(now / 200) * 0.12;
+            }
+            chicken.group.userData.materials.forEach(m => {
+                if (tint) {
+                    m.emissive.copy(tint);
+                    m.emissiveIntensity = strength;
+                } else {
+                    m.emissive.copy(m.userData.baseEmissive);
+                    m.emissiveIntensity = m.userData.baseEmissiveIntensity;
+                }
+                m.opacity = m.userData.baseOpacity * chicken.opacity;
+            });
         }
 
-        // Move chickens
-        function moveChickens() {
-            const currentTime = Date.now();
+        function updateCreatureLabels(chicken) {
+            // HP bar for enemies with more than 1 max HP that have taken damage
+            const showHp = !chicken.isDead && chicken.maxHp > 1 && chicken.hp < chicken.maxHp;
+            if (showHp) {
+                if (!chicken.hpEl) {
+                    chicken.hpEl = document.createElement('div');
+                    chicken.hpEl.className = 'hp-bar';
+                    chicken.hpEl.appendChild(document.createElement('div'));
+                    labelsLayer.appendChild(chicken.hpEl);
+                }
+                const top = chicken.group.position.clone();
+                top.y += (chicken.type.centerY * chicken.type.scale) + chicken.type.radius + 0.25;
+                const s = toScreen(top);
+                const ratio = chicken.hp / chicken.maxHp;
+                chicken.hpEl.style.left = s.x + 'px';
+                chicken.hpEl.style.top = s.y + 'px';
+                chicken.hpEl.firstChild.style.width = (ratio * 100) + '%';
+                chicken.hpEl.firstChild.style.background = ratio > 0.5 ? '#44FF44' : '#FF4444';
+            } else if (chicken.hpEl) {
+                chicken.hpEl.remove();
+                chicken.hpEl = null;
+            }
+
+            // Multiplier text over dead creatures
+            if (chicken.isDead && chicken.multiplierText && chicken.opacity > 0) {
+                if (!chicken.textEl) {
+                    chicken.textEl = document.createElement('div');
+                    chicken.textEl.className = 'float-text';
+                    chicken.textEl.textContent = chicken.multiplierText;
+                    chicken.textEl.style.fontSize = '30px';
+                    chicken.textEl.style.color = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
+                    labelsLayer.appendChild(chicken.textEl);
+                }
+                const s = toScreen(chicken.group.position.clone().setY(chicken.group.position.y + 1.6));
+                chicken.textEl.style.left = s.x + 'px';
+                chicken.textEl.style.top = s.y + 'px';
+                chicken.textEl.style.opacity = chicken.opacity;
+            }
+        }
+
+        // Move creatures around the arena
+        function moveChickens(dt, now) {
+            const W = CONFIG.arenaHalfWidth;
+            const D = CONFIG.arenaHalfDepth;
             for (let i = chickens.length - 1; i >= 0; i--) {
                 const chicken = chickens[i];
 
-                // Spawn animation
+                // Spawn animation (pop in with a little overshoot)
                 if (chicken.entryScale < 1) {
-                    chicken.entryScale = Math.min(chicken.entryScale + 0.05, 1);
+                    chicken.entryScale = Math.min(chicken.entryScale + dt * 3, 1);
                 }
+                const e = chicken.entryScale;
+                const pop = e < 1 ? e + Math.sin(e * Math.PI) * 0.25 : 1;
 
                 if (chicken.isDead) {
-                    const elapsed = currentTime - chicken.deathTime;
-                    chicken.opacity = 1 - (elapsed / 1000);
-                    chicken.textOpacity = chicken.opacity;
+                    const elapsed = now - chicken.deathTime;
+                    chicken.opacity = Math.max(0, 1 - (elapsed / 1000));
+                    // Knocked back, tumbling, then lying on its side
+                    const g = chicken.group;
+                    chicken.deathVel.y -= 14 * dt;
+                    g.position.addScaledVector(chicken.deathVel, dt);
+                    if (g.position.y <= 0) {
+                        g.position.y = 0;
+                        chicken.deathVel.set(chicken.deathVel.x * 0.5, Math.abs(chicken.deathVel.y) * 0.25, chicken.deathVel.z * 0.5);
+                        chicken.deathSpin *= 0.5;
+                    }
+                    chicken.model.rotation.z = Math.min(Math.PI / 2, chicken.model.rotation.z + Math.abs(chicken.deathSpin) * dt * 0.6);
+                    chicken.model.rotation.y += chicken.deathSpin * dt * 0.3;
+                    const squash = 1 - Math.min(1, elapsed / 1000) * 0.3;
+                    chicken.model.scale.set(chicken.type.scale, chicken.type.scale * squash, chicken.type.scale);
+                    applyTint(chicken, now);
+                    updateCreatureLabels(chicken);
                     if (chicken.opacity <= 0) {
+                        removeCreature(chicken);
                         chickens.splice(i, 1);
                     }
                     continue;
                 }
 
-                // Don't move if frozen
-                if (freezeActive) continue;
+                const frozen = freezeActive && gameRunning;
+                if (!frozen) {
+                    chicken.phase += dt;
+                    const vx = chicken.dx * CONFIG.speedToWorld;
+                    const vz = chicken.dy * CONFIG.speedToWorld;
+                    const g = chicken.group.position;
+                    g.x += vx * dt;
+                    g.z += vz * dt;
 
-                chicken.x += chicken.dx;
-                chicken.y += chicken.dy;
+                    // Bounce off the fences
+                    if (g.x <= -W) { g.x = -W; chicken.dx *= -1; }
+                    else if (g.x >= W) { g.x = W; chicken.dx *= -1; }
+                    if (g.z <= -D) { g.z = -D; chicken.dy *= -1; }
+                    else if (g.z >= D) { g.z = D; chicken.dy *= -1; }
 
-                // Bounce off left and right walls
-                if (chicken.x <= 0) {
-                    chicken.x = 0;
-                    chicken.dx *= -1;
-                } else if (chicken.x + CONFIG.chickenWidth >= canvas.width) {
-                    chicken.x = canvas.width - CONFIG.chickenWidth;
-                    chicken.dx *= -1;
+                    if (chicken.type.fly) {
+                        g.y = chicken.altitude + Math.sin(chicken.phase * 1.3) * 0.4;
+                    }
+
+                    // Face the direction of travel (crabs walk sideways)
+                    let targetYaw = Math.atan2(chicken.dx, chicken.dy);
+                    if (chicken.enemyType === 'crab') targetYaw += Math.PI / 2;
+                    let diff = targetYaw - chicken.yaw;
+                    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+                    chicken.yaw += diff * Math.min(1, dt * 8);
+                    animateCreature(chicken, chicken.phase, true);
                 }
-
-                // Bounce off floor
-                if (chicken.y + CONFIG.chickenHeight >= canvas.height) {
-                    chicken.y = canvas.height - CONFIG.chickenHeight;
-                    chicken.dy *= -1;
+                chicken.group.rotation.y = chicken.yaw;
+                chicken.group.scale.setScalar(pop);
+                if (chicken.crown) {
+                    chicken.crown.position.y = 1.95 + Math.sin(now / 200) * 0.08;
+                    chicken.crown.rotation.y = now / 600;
                 }
-
-                // Bounce off ceiling (middle of the canvas)
-                if (chicken.y <= canvas.height / 2) {
-                    chicken.y = canvas.height / 2;
-                    chicken.dy *= -1;
-                }
+                applyTint(chicken, now);
+                updateCreatureLabels(chicken);
             }
 
             // Check for game over condition
-            const liveCount = chickens.filter(c => !c.isDead).length;
-            if (liveCount >= CONFIG.maxChickens) {
-                endGame();
+            if (gameRunning && !isGameOver) {
+                const liveCount = chickens.filter(c => !c.isDead).length;
+                if (liveCount >= CONFIG.maxChickens) {
+                    endGame();
+                }
             }
         }
 
-        // Draw chickens
-        function drawChickens() {
-            chickens.forEach(chicken => {
-                // Draw golden glow first (behind chicken)
-                if (chicken.isGolden && !chicken.isDead) {
-                    drawGoldenGlow(chicken);
-                }
+        // ========== WEAPON ANIMATION ==========
+        const HAMMER_SCALE = 1.7;
+        const HAMMER_HEAD = new THREE.Vector3(1.7, -0.42, 0).multiplyScalar(HAMMER_SCALE);
+        const hammerYaw = new THREE.Euler(0, -0.55, 0);
+        function animateWeapons(dt, time) {
+            // Hammer hovers over the aim point; swinging rotates it around the grip
+            const targetSwing = isMouseDown && currentWeapon === 'hammer' ? 1 : 0;
+            hammerSwing += (targetSwing - hammerSwing) * Math.min(1, dt * (targetSwing ? 28 : 10));
+            const raised = 1.05;
+            hammerYaw.y = -0.55 + layout.yaw;
+            const head = tmpV.copy(HAMMER_HEAD).applyEuler(hammerYaw);
+            hammerRig.position.copy(aimPoint).sub(head);
+            hammerRig.rotation.set(0, hammerYaw.y, raised * (1 - hammerSwing) + Math.sin(time * 3) * 0.03, 'YZX');
 
-                ctx.save();
-                ctx.globalAlpha = chicken.opacity;
+            aimRing.visible = gameRunning && currentWeapon === 'hammer';
+            aimRing.position.set(aimPoint.x, 0.05, aimPoint.z);
+            aimRing.material.color.set(aimEnemy ? 0xff5533 : 0xffffff);
 
-                const scale = chicken.entryScale;
-                const cw = CONFIG.chickenWidth * scale;
-                const ch = CONFIG.chickenHeight * scale;
-                const offsetX = (CONFIG.chickenWidth - cw) / 2;
-                const offsetY = (CONFIG.chickenHeight - ch) / 2;
-
-                if (chicken.isGolden && !chicken.isDead) {
-                    // Golden tint: draw with color overlay
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = '#FFD700';
-                }
-
-                // Draw frozen indicator
-                if (freezeActive && !chicken.isDead) {
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = '#00BFFF';
-                }
-
-                // Damage flash for enemies that took a hit but aren't dead
-                if (chicken.damageFlash && !chicken.isDead) {
-                    const flashElapsed = Date.now() - chicken.damageFlash;
-                    if (flashElapsed < 200) {
-                        ctx.shadowBlur = 20;
-                        ctx.shadowColor = '#FF0000';
-                        ctx.globalAlpha = 0.6 + Math.sin(flashElapsed / 30) * 0.4;
-                    }
-                }
-
-                if (chicken.dx > 0) {
-                    ctx.translate(chicken.x + offsetX + cw / 2, chicken.y + offsetY);
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(chicken.image, -cw / 2, 0, cw, ch);
-                } else {
-                    ctx.translate(chicken.x + offsetX, chicken.y + offsetY);
-                    ctx.drawImage(chicken.image, 0, 0, cw, ch);
-                }
-
-                ctx.restore();
-
-                // Draw HP bar for enemies with more than 1 max HP that have taken damage
-                if (!chicken.isDead && chicken.maxHp > 1 && chicken.hp < chicken.maxHp) {
-                    ctx.save();
-                    const barWidth = CONFIG.chickenWidth * 0.7;
-                    const barHeight = 4;
-                    const barX = chicken.x + (CONFIG.chickenWidth - barWidth) / 2;
-                    const barY = chicken.y - 8;
-                    // Background
-                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                    ctx.fillRect(barX, barY, barWidth, barHeight);
-                    // HP fill
-                    const hpRatio = chicken.hp / chicken.maxHp;
-                    ctx.fillStyle = hpRatio > 0.5 ? '#44FF44' : '#FF4444';
-                    ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
-                    ctx.restore();
-                }
-
-                // Draw golden crown/star indicator
-                if (chicken.isGolden && !chicken.isDead) {
-                    ctx.save();
-                    ctx.font = '18px Arial';
-                    ctx.textAlign = 'center';
-                    const starY = chicken.y - 5 + Math.sin(Date.now() / 200) * 3;
-                    ctx.fillText('\u2B50', chicken.x + CONFIG.chickenWidth / 2, starY);
-                    ctx.restore();
-                }
-
-                // Draw multiplier text over dead chickens
-                if (chicken.isDead && chicken.multiplierText && chicken.textOpacity > 0) {
-                    ctx.save();
-                    ctx.globalAlpha = chicken.textOpacity;
-                    ctx.fillStyle = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
-                    ctx.font = `bold ${CONFIG.chickenHeight * 0.5}px Arial Black, Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.shadowBlur = 6;
-                    ctx.shadowColor = '#000';
-                    const textX = chicken.x + CONFIG.chickenWidth / 2;
-                    const textY = chicken.y + CONFIG.chickenHeight / 2 - CONFIG.chickenHeight * 0.5;
-                    ctx.fillText(chicken.multiplierText, textX, textY);
-                    ctx.restore();
-                }
-            });
-        }
-
-        // Draw combo meter in top-right area
-        function drawComboMeter() {
-            if (multiplier < 2) return;
-            const currentTime = Date.now();
-            const timeSinceHit = currentTime - lastHitTime;
-            const comboRemaining = Math.max(0, 1 - timeSinceHit / CONFIG.comboTimeLimit);
-
-            if (comboRemaining <= 0) return;
-
-            const x = canvas.width - 120;
-            const y = 60;
-            const barWidth = 100;
-            const barHeight = 8;
-
-            // Combo text
-            ctx.save();
-            const comboColor = getComboColor(multiplier);
-            const comboSize = Math.min(20 + multiplier * 2, 40);
-            ctx.font = `bold ${comboSize}px Arial Black, Arial`;
-            ctx.textAlign = 'center';
-            ctx.fillStyle = comboColor;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = comboColor;
-
-            // Pulsing effect
-            const pulse = 1 + Math.sin(currentTime / 100) * 0.05 * multiplier;
-            ctx.translate(x + barWidth / 2, y);
-            ctx.scale(pulse, pulse);
-            ctx.fillText('x' + multiplier, 0, 0);
-
-            // Combo label
-            const label = getComboLabel(multiplier);
-            if (label) {
-                ctx.font = 'bold 14px Arial';
-                ctx.fillStyle = comboColor;
-                ctx.fillText(label, 0, 18);
+            if (rocketMarker.visible) {
+                rocketMarker.position.set(aimPoint.x, 0.06, aimPoint.z);
+                const ready = Date.now() - lastRocketTime >= CONFIG.rocketCooldown;
+                rocketMarker.material.opacity = ready ? 0.45 + Math.sin(time * 8) * 0.15 : 0.18;
             }
 
-            ctx.restore();
+            // Turrets track the aim point
+            for (const rig of Object.values(weaponRigs)) {
+                if (!rig.root.visible) continue;
+                rig.rise = Math.min(1, rig.rise + dt * 4);
+                rig.root.position.copy(layout.turret);
+                rig.root.position.y = (1 - rig.rise) * -1.5;
+                rig.gun.position.set(0, 0.95, 0);
+                rig.gun.lookAt(aimPoint);
+                rig.recoil = Math.max(0, rig.recoil - dt * 10);
+                rig.gun.translateZ(-rig.recoil * 0.15);
+            }
 
-            // Timer bar
-            ctx.save();
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(x, y + 22, barWidth, barHeight);
-            ctx.fillStyle = comboColor;
-            ctx.fillRect(x, y + 22, barWidth * comboRemaining, barHeight);
-            ctx.restore();
+            const cursor = document.getElementById('cursor2d');
+            if (cursor.style.display !== 'none') {
+                cursor.style.left = pointerPx.x + 'px';
+                cursor.style.top = pointerPx.y + 'px';
+            }
         }
 
-        // Draw weapon cursor
-        function drawHammer() {
-            if (currentWeapon === 'hammer') {
-                const hammerX = mouseX - CONFIG.hammerWidth / 2;
-                const hammerY = mouseY - CONFIG.hammerHeight / 2;
-                ctx.drawImage(hammerImage, hammerX, hammerY, CONFIG.hammerWidth, CONFIG.hammerHeight);
-            } else if (currentWeapon === 'machinegun') {
-                // Draw crosshair
-                const size = 40;
-                if (crosshairImage.complete && crosshairImage.naturalWidth > 0) {
-                    ctx.drawImage(crosshairImage, mouseX - size / 2, mouseY - size / 2, size, size);
-                } else {
-                    // Fallback: draw crosshair with canvas
-                    ctx.save();
-                    ctx.strokeStyle = '#ff3333';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(mouseX, mouseY, 15, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(mouseX, mouseY - 20);
-                    ctx.lineTo(mouseX, mouseY - 8);
-                    ctx.moveTo(mouseX, mouseY + 8);
-                    ctx.lineTo(mouseX, mouseY + 20);
-                    ctx.moveTo(mouseX - 20, mouseY);
-                    ctx.lineTo(mouseX - 8, mouseY);
-                    ctx.moveTo(mouseX + 8, mouseY);
-                    ctx.lineTo(mouseX + 20, mouseY);
-                    ctx.stroke();
-                    ctx.fillStyle = '#ff3333';
-                    ctx.beginPath();
-                    ctx.arc(mouseX, mouseY, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-                // Draw firing line indicator from bottom center to cursor
-                if (isMouseDown) {
-                    ctx.save();
-                    ctx.setLineDash([5, 8]);
-                    ctx.strokeStyle = 'rgba(255, 220, 60, 0.2)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2, canvas.height - 10);
-                    ctx.lineTo(mouseX, mouseY);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            } else if (currentWeapon === 'rocket') {
-                // Draw target reticle
-                const size = 50;
-                if (rocketTargetImage.complete && rocketTargetImage.naturalWidth > 0) {
-                    ctx.save();
-                    // Pulse effect
-                    const pulse = 1 + Math.sin(Date.now() / 200) * 0.05;
-                    ctx.translate(mouseX, mouseY);
-                    ctx.scale(pulse, pulse);
-                    ctx.drawImage(rocketTargetImage, -size / 2, -size / 2, size, size);
-                    ctx.restore();
-                } else {
-                    // Fallback: draw target with canvas
-                    ctx.save();
-                    const pulse = 1 + Math.sin(Date.now() / 200) * 0.05;
-                    ctx.translate(mouseX, mouseY);
-                    ctx.scale(pulse, pulse);
-                    ctx.strokeStyle = '#ff8800';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.fillStyle = '#ff4400';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-                // Show cooldown status
-                const elapsed = Date.now() - lastRocketTime;
-                if (elapsed < CONFIG.rocketCooldown) {
-                    const progress = elapsed / CONFIG.rocketCooldown;
-                    ctx.save();
-                    ctx.strokeStyle = 'rgba(255, 68, 0, 0.5)';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(mouseX, mouseY, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            } else if (currentWeapon === 'laser') {
-                // Draw laser targeting reticle
-                const pulse = 1 + Math.sin(Date.now() / 100) * 0.1;
-                ctx.save();
-                ctx.translate(mouseX, mouseY);
-                ctx.scale(pulse, pulse);
-                // Outer diamond
-                ctx.strokeStyle = '#00FFFF';
-                ctx.lineWidth = 2;
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#00FFFF';
-                ctx.beginPath();
-                ctx.moveTo(0, -18);
-                ctx.lineTo(18, 0);
-                ctx.lineTo(0, 18);
-                ctx.lineTo(-18, 0);
-                ctx.closePath();
-                ctx.stroke();
-                // Inner crosshair
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(0, -10);
-                ctx.lineTo(0, -4);
-                ctx.moveTo(0, 4);
-                ctx.lineTo(0, 10);
-                ctx.moveTo(-10, 0);
-                ctx.lineTo(-4, 0);
-                ctx.moveTo(4, 0);
-                ctx.lineTo(10, 0);
-                ctx.stroke();
-                // Center dot
-                ctx.fillStyle = '#00FFFF';
-                ctx.beginPath();
-                ctx.arc(0, 0, 2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-                // Aim line when firing
-                if (isMouseDown) {
-                    ctx.save();
-                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
-                    ctx.lineWidth = 1;
-                    ctx.setLineDash([3, 6]);
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2, canvas.height - 10);
-                    ctx.lineTo(mouseX, mouseY);
-                    ctx.stroke();
-                    ctx.restore();
-                }
+        // ========== CAMERA ==========
+        function resize() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            renderer.setSize(w, h, false);
+            camera.aspect = w / h;
+            layout = camera.aspect < 0.85 ? LAYOUTS.portrait : LAYOUTS.landscape;
+            camera.fov = layout.fov;
+            CAMERA_TARGET.copy(layout.target);
+            // Pull the camera back until the whole field fits horizontally
+            const dist = layout.offset.length();
+            const visibleHalfWidth = dist * Math.tan(THREE.MathUtils.degToRad(layout.fov / 2)) * camera.aspect;
+            const k = Math.max(1, layout.halfWidth / visibleHalfWidth);
+            cameraBase.copy(CAMERA_TARGET).addScaledVector(layout.offset, k);
+            camera.far = 400 * k;
+            camera.updateProjectionMatrix();
+        }
+        window.addEventListener('resize', resize);
+
+        function updateCamera(dt, time) {
+            camera.position.copy(cameraBase);
+            if (!gameRunning) {
+                // Gentle orbit on the title and game over screens
+                const a = Math.sin(time * 0.15) * 0.25;
+                const off = cameraBase.clone().sub(CAMERA_TARGET);
+                off.applyAxisAngle(new THREE.Vector3(0, 1, 0), a);
+                camera.position.copy(CAMERA_TARGET).add(off);
             }
+            if (shakeTime > 0) {
+                shakeTime -= dt * 1000;
+                const intensity = CONFIG.shakeIntensity * shakeScale * Math.max(0, shakeTime / CONFIG.shakeDuration);
+                camera.position.x += (Math.random() - 0.5) * intensity * 2;
+                camera.position.y += (Math.random() - 0.5) * intensity * 2;
+            }
+            camera.lookAt(CAMERA_TARGET);
+        }
+
+        // ========== MAIN GAME FUNCTIONS ==========
+        function updateScore() {
+            let display = 'Score: ' + score;
+            if (multiplier > 1) display += ' (x' + multiplier + ')';
+            if (doublePointsActive) display += ' [2x ACTIVE]';
+            document.getElementById('score').innerText = display;
+        }
+
+        function clearField() {
+            chickens.forEach(removeCreature);
+            chickens = [];
+            for (let i = powerUps.length - 1; i >= 0; i--) removePowerUp(i);
+            bullets.forEach(b => scene.remove(b.mesh));
+            bullets = [];
+            rockets.forEach(r => scene.remove(r.mesh));
+            rockets = [];
+            floatingTexts.forEach(ft => ft.el.remove());
+            floatingTexts = [];
+            particles = [];
+        }
+
+        // A few chickens wander around behind the title screen
+        function spawnAttractChickens() {
+            for (let i = 0; i < 6; i++) {
+                const p = randomArenaPoint();
+                const c = createCreature('chicken', p.x, p.z);
+                c.dx = (Math.random() < 0.5 ? -1 : 1) * (0.6 + Math.random());
+                c.dy = (Math.random() < 0.5 ? -1 : 1) * (0.6 + Math.random());
+                c.entryScale = 1;
+                if (i === 0) makeGolden(c);
+                chickens.push(c);
+            }
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            ensureAudioCtx();
+            if (!backgroundMusicStarted) {
+                backgroundMusic.play().catch(() => {});
+                backgroundMusicStarted = true;
+            }
+            beginGame();
+        }
+
+        function beginGame() {
+            clearField();
+            startTime = Date.now();
+            lastPowerUpSpawn = Date.now();
+            currentWave = 1;
+            gameRunning = true;
+            isGameOver = false;
+
+            // Show weapon bar and wave 1 announcement
+            document.getElementById('weaponBar').style.display = 'flex';
+            refreshWeaponVisibility();
+            setTimeout(() => announceWave(1), 500);
+
+            spawnChicken();
         }
 
         // Handle weapon input
         function hammerDown(event) {
+            setPointerFromEvent(event);
             ensureAudioCtx();
+            if (!gameRunning || isGameOver) return;
             if (!backgroundMusicStarted) {
-                backgroundMusic.play();
+                backgroundMusic.play().catch(() => {});
                 backgroundMusicStarted = true;
             }
-            if (isGameOver) return;
             isMouseDown = true;
+            canvas.setPointerCapture && event.pointerId !== undefined && canvas.setPointerCapture(event.pointerId);
+            updateAim();
 
             // Check power-up collision first (works for all weapons)
             const gotPowerUp = checkPowerUpCollision();
@@ -2661,13 +2754,13 @@
             }
 
             if (currentWeapon === 'hammer') {
-                hammerImage = hammerOnImage;
+                hammerSwing = 0.6;   // snap most of the way down right away
                 const hit = checkHit();
                 if (!hit) {
-                    missSound.currentTime = 0;
-                    missSound.play();
+                    playSfx(missSound);
                     multiplier = 1;
                 }
+                spawnParticles(new THREE.Vector3(aimPoint.x, 0.1, aimPoint.z), '#c8b68a', 6, false, { speed: 0.6, flat: true, gravity: 4 });
             } else if (currentWeapon === 'machinegun') {
                 // Fire immediately and start auto-fire
                 fireBullet();
@@ -2701,137 +2794,56 @@
 
         function hammerUp(event) {
             isMouseDown = false;
-            if (currentWeapon === 'hammer') {
-                hammerImage = hammerOffImage;
-            }
-            // Stop machine gun auto-fire
+            // Stop machine gun / laser auto-fire
             if (autoFireInterval) {
                 clearInterval(autoFireInterval);
                 autoFireInterval = null;
             }
-            event.preventDefault();
         }
 
-        function updateMousePosition(event) {
-            const rect = canvas.getBoundingClientRect();
-            mouseX = event.clientX - rect.left;
-            mouseY = event.clientY - rect.top;
+        function updatePointerPosition(event) {
+            setPointerFromEvent(event);
         }
 
-        function updateTouchPosition(event) {
-            const rect = canvas.getBoundingClientRect();
-            mouseX = event.touches[0].clientX - rect.left;
-            mouseY = event.touches[0].clientY - rect.top;
-            event.preventDefault();
-        }
-
-        // Check for hitting chickens
+        // Check for hitting creatures with the hammer
         function checkHit() {
             const currentTime = Date.now();
-            for (let i = 0; i < chickens.length; i++) {
-                const chicken = chickens[i];
-                if (!chicken.isDead &&
-                    mouseX >= chicken.x &&
-                    mouseX <= chicken.x + CONFIG.chickenWidth &&
-                    mouseY >= chicken.y &&
-                    mouseY <= chicken.y + CONFIG.chickenHeight
-                ) {
-                    // Hammer deals 1 damage — check HP
-                    chicken.hp = (chicken.hp || 1) - 1;
-                    if (chicken.hp > 0) {
-                        // Not dead yet — show damage feedback
-                        hitSound.currentTime = 0;
-                        hitSound.play();
-                        const cx = chicken.x + CONFIG.chickenWidth / 2;
-                        const cy = chicken.y + CONFIG.chickenHeight / 2;
-                        spawnParticles(cx, cy, '#FFAA00', 3, false);
-                        spawnFloatingText(cx, cy - 20, 'HIT!', '#FFAA00', 16);
-                        chicken.damageFlash = currentTime;
-                        return true;
-                    }
+            const chicken = aimEnemy;
+            if (!chicken || chicken.isDead) return false;
 
-                    // Play appropriate sound
-                    if (chicken.isGolden) {
-                        playGoldenHitSound();
-                    }
-                    hitSound.currentTime = 0;
-                    hitSound.play();
-
-                    // Change chicken to dead state
-                    chicken.isDead = true;
-                    chicken.deathTime = currentTime;
-                    chicken.image = chicken.deadImage || chickenDeadImage;
-                    totalChickensHit++;
-
-                    // Update combo multiplier
-                    if (currentTime - lastHitTime <= CONFIG.comboTimeLimit) {
-                        multiplier++;
-                    } else {
-                        multiplier = 1;
-                    }
-                    lastHitTime = currentTime;
-
-                    // Calculate points
-                    let points = multiplier;
-                    if (chicken.isGolden) points *= 10;
-                    if (doublePointsActive) points *= 2;
-
-                    score += points;
-                    updateScore();
-
-                    // Visual feedback
-                    const cx = chicken.x + CONFIG.chickenWidth / 2;
-                    const cy = chicken.y + CONFIG.chickenHeight / 2;
-
-                    // Particles - feathers!
-                    const featherColors = chicken.isGolden
-                        ? ['#FFD700', '#FFA500', '#FFEC8B', '#FFE4B5']
-                        : ['#FFFFFF', '#F5DEB3', '#DEB887', '#CD853F'];
-                    featherColors.forEach(color => {
-                        spawnParticles(cx, cy, color, 3, chicken.isGolden);
-                    });
-
-                    // Floating score text
-                    let scoreText = '+' + points;
-                    const textColor = chicken.isGolden ? '#FFD700' : getComboColor(multiplier);
-                    const textSize = chicken.isGolden ? 32 : (20 + Math.min(multiplier * 2, 16));
-                    spawnFloatingText(cx, cy - 20, scoreText, textColor, textSize);
-
-                    // Multiplier text on chicken
-                    if (multiplier >= 2) {
-                        chicken.multiplierText = 'x' + multiplier;
-                    }
-                    if (chicken.isGolden) {
-                        chicken.multiplierText = (chicken.multiplierText || '') + ' GOLDEN!';
-                    }
-
-                    // Screen shake on big combos
-                    if (multiplier >= 5) {
-                        triggerShake(multiplier);
-                    }
-
-                    // Extra particles at high combos
-                    if (multiplier >= 8) {
-                        spawnParticles(cx, cy, getComboColor(multiplier), 8, true);
-                    }
-
-                    return true;
-                }
+            // Hammer deals 1 damage: check HP
+            chicken.hp = (chicken.hp || 1) - 1;
+            playThudSound();
+            if (chicken.hp > 0) {
+                // Not dead yet: show damage feedback
+                playSfx(hitSound);
+                const c = enemyCenter(chicken, new THREE.Vector3());
+                spawnParticles(c, '#FFAA00', 3, false);
+                spawnFloatingText(c, 'HIT!', '#FFAA00', 16);
+                chicken.damageFlash = currentTime;
+                return true;
             }
-            return false;
-        }
 
-        // Update the score display
-        function updateScore() {
-            let display = 'Score: ' + score;
-            if (multiplier > 1) display += ' (x' + multiplier + ')';
-            if (doublePointsActive) display += ' [2x ACTIVE]';
-            document.getElementById('score').innerText = display;
+            // Play appropriate sound
+            if (chicken.isGolden) {
+                playGoldenHitSound();
+            }
+            playSfx(hitSound);
+
+            // Squash the creature flat, then knock it over
+            killEnemy(chicken, currentTime, null);
+            chicken.deathVel.set(0, chicken.type.fly ? -2 : 1.5, 0);
+            totalChickensHit++;
+            awardKill(chicken, currentTime);
+            return true;
         }
 
         // End the game
         function endGame() {
+            if (isGameOver) return;
             isGameOver = true;
+            gameRunning = false;
+            isMouseDown = false;
 
             // Cancel any pending spawn
             if (spawnTimeoutId) {
@@ -2857,20 +2869,15 @@
                 autoFireInterval = null;
             }
 
-            // Remove event listeners
-            canvas.removeEventListener('mousedown', hammerDown);
-            canvas.removeEventListener('mouseup', hammerUp);
-            canvas.removeEventListener('mousemove', updateMousePosition);
-            canvas.removeEventListener('touchstart', hammerDown);
-            canvas.removeEventListener('touchend', hammerUp);
-            canvas.removeEventListener('touchmove', updateTouchPosition);
-            document.removeEventListener('keydown', handleKeyDown);
-
             document.getElementById('weaponBar').style.display = 'none';
+            document.getElementById('comboMeter').style.display = 'none';
+            for (let i = powerUps.length - 1; i >= 0; i--) removePowerUp(i);
+            freezeActive = false;
             backgroundMusic.pause();
             actionMusicMedium.pause();
             actionMusicIntense.pause();
             actionMusicEpic.pause();
+            refreshWeaponVisibility();
             canvas.style.cursor = 'default';
         }
 
@@ -2879,39 +2886,26 @@
             score = 0;
             multiplier = 1;
             lastHitTime = 0;
-            chickens = [];
-            particles = [];
-            floatingTexts = [];
-            powerUps = [];
             spawnInterval = CONFIG.baseSpawnInterval;
             chickenSpeed = CONFIG.baseChickenSpeed;
-            gameTime = 0;
-            isGameOver = false;
             currentWave = 1;
             totalChickensHit = 0;
             freezeActive = false;
             doublePointsActive = false;
             shakeTime = 0;
-            shakeOffsetX = 0;
-            shakeOffsetY = 0;
 
             // Reset weapon state
             currentWeapon = 'hammer';
             unlockedWeapons = ['hammer'];
-            bullets = [];
-            rockets = [];
-            explosions = [];
             lastFireTime = 0;
             lastRocketTime = 0;
             lastLaserFireTime = 0;
             laserBeam = null;
-            laserHitTarget = null;
             bulletsMissedConsecutive = 0;
             if (autoFireInterval) {
                 clearInterval(autoFireInterval);
                 autoFireInterval = null;
             }
-            hammerImage = hammerOffImage;
 
             document.getElementById('gameOverOverlay').classList.remove('show');
 
@@ -2927,17 +2921,14 @@
                     if (lock) lock.style.display = '';
                 }
             });
+            const cooldownBar = document.querySelector('.rocket-cooldown');
+            if (cooldownBar) cooldownBar.remove();
             document.getElementById('powerUpStatus').innerHTML = '';
             updateScore();
             loadHighScore();
 
-            startTime = Date.now();
-            lastPowerUpSpawn = Date.now();
-            lastWaveTime = Date.now();
-
             backgroundMusic.currentTime = 0;
             backgroundMusic.playbackRate = 1.0;
-            backgroundMusicStarted = false;
             actionMusicMedium.pause();
             actionMusicMedium.currentTime = 0;
             mediumMusicTriggered = false;
@@ -2947,22 +2938,101 @@
             actionMusicEpic.pause();
             actionMusicEpic.currentTime = 0;
             epicMusicTriggered = false;
+            backgroundMusic.play().catch(() => {});
+            backgroundMusicStarted = true;
 
-            canvas.addEventListener('mousedown', hammerDown);
-            canvas.addEventListener('mouseup', hammerUp);
-            canvas.addEventListener('mousemove', updateMousePosition);
-            canvas.addEventListener('touchstart', hammerDown);
-            canvas.addEventListener('touchend', hammerUp);
-            canvas.addEventListener('touchmove', updateTouchPosition);
+            canvas.style.cursor = 'none';
+            beginGame();
+        }
+
+        // ========== MAIN LOOP ==========
+        const clock = new THREE.Clock();
+        let elapsedTime = 0;
+
+        function update() {
+            requestAnimationFrame(update);
+            const dt = Math.min(clock.getDelta(), 0.05);
+            elapsedTime += dt;
+            const now = Date.now();
+
+            if (gameRunning && !isGameOver) {
+                updateWaveSystem();
+                updatePowerUps(dt);
+                updateBullets(dt);
+                updateRockets(dt);
+                updateRocketCooldownUI();
+            }
+            updateAim();
+            moveChickens(dt, now);
+            animatePowerUps(elapsedTime);
+            updateLaserBeam();
+            updateExplosions();
+            updateParticles(dt);
+            updateFloatingTexts(dt);
+            updateSnow(dt);
+            drawComboMeter();
+            animateWeapons(dt, elapsedTime);
+            if (gameRunning) updateDangerBar();
+
+            if (windmillRotor) windmillRotor.rotation.x += dt * 0.9;
+            if (clouds) clouds.position.x = Math.sin(elapsedTime * 0.02) * 12;
+
+            updateCamera(dt, elapsedTime);
+            renderer.render(scene, camera);
+        }
+
+        function init() {
+            loadHighScore();
+            resize();
+
+            document.getElementById('startButton').addEventListener('click', startGame);
+            document.getElementById('restartButton').addEventListener('click', restartGame);
+            document.querySelectorAll('.weapon-slot').forEach(slot => {
+                slot.addEventListener('pointerdown', e => {
+                    e.stopPropagation();
+                    switchWeapon(slot.dataset.weapon);
+                });
+            });
+            canvas.addEventListener('pointerdown', hammerDown);
+            canvas.addEventListener('pointermove', updatePointerPosition);
+            window.addEventListener('pointerup', hammerUp);
+            window.addEventListener('pointercancel', hammerUp);
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
             document.addEventListener('keydown', handleKeyDown);
 
-            document.getElementById('weaponBar').style.display = 'flex';
-            setTimeout(() => announceWave(1), 500);
-            spawnChicken();
-            lastFrameTime = Date.now();
-            update();
-            canvas.style.cursor = 'none';
+            const startButton = document.getElementById('startButton');
+            const loadingText = document.getElementById('loadingText');
+            loadModels(p => {
+                loadingText.textContent = 'Building the farm... ' + Math.round(p * 100) + '%';
+            }).then(() => {
+                setupFarm();
+                setupWeapons();
+                refreshWeaponVisibility();
+                spawnAttractChickens();
+                renderer.compile(scene, camera);
+                startButton.disabled = false;
+                startButton.textContent = 'START GAME';
+                loadingText.textContent = '';
+                update();
+            }).catch(err => {
+                console.error(err);
+                loadingText.textContent = 'Could not load the 3D models: ' + err.message;
+            });
         }
+
+        // Expose a tiny hook for automated tests / debugging
+        window.__chickenGame = {
+            get state() {
+                return { score, multiplier, currentWave, currentWeapon, gameRunning, isGameOver,
+                    creatures: chickens.filter(c => !c.isDead).length, powerUps: powerUps.length,
+                    hp: chickens.filter(c => !c.isDead).map(c => c.enemyType + ':' + c.hp) };
+            },
+            skipToWave(w) { startTime = Date.now() - (w - 1) * CONFIG.waveInterval - 50; },
+            spawnPowerUp(name) { spawnPowerUp(POWERUP_TYPES[name]); },
+            powerUpScreenPositions() { return powerUps.map(pu => toScreen(pu.group.position)); },
+            clearCreatures() { chickens.forEach(removeCreature); chickens = []; },
+            creatureScreenPositions() { return chickens.filter(c => !c.isDead).map(c => toScreen(enemyCenter(c, new THREE.Vector3()))); },
+        };
 
         // Start everything
         init();
